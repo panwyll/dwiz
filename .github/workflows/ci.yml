@@ -1,0 +1,25 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e . ruff==0.6.9 pytest==8.3.3
+      - name: Lint
+        run: ruff check .
+      - name: Test
+        run: pytest
+      - name: DAG validation
+        run: python scripts/validate_dags.py
+      - name: DAG policy check
+        run: python scripts/validate_dags.py
