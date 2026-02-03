@@ -48,7 +48,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     require_tools("aws")
     if args.env not in TERRAFORM_ENVS:
         raise SystemExit("env must be dev or prod")
-    run_make("deploy")
+    run_make("deploy", args.env)
 
 
 def cmd_new_source(args: argparse.Namespace) -> None:

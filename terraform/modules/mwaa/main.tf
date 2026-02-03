@@ -88,6 +88,24 @@ resource "aws_security_group" "mwaa" {
   }
 }
 
+resource "aws_security_group_rule" "mwaa_ingress_self" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  self              = true
+  security_group_id = aws_security_group.mwaa.id
+}
+
+resource "aws_security_group_rule" "mwaa_egress_https" {
+  type              = "egress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.mwaa.id
+}
+
 output "dags_bucket" {
   value = aws_s3_bucket.dags.bucket
 }
