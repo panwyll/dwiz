@@ -13,6 +13,7 @@ test:
 
 dag-validate:
 	$(PYTHON) scripts/validate_dags.py
+	$(PYTHON) scripts/policy_check.py
 
 tf-init:
 	terraform -chdir=terraform/envs/$(ENV) init
@@ -30,4 +31,4 @@ build:
 	./scripts/build_and_push.sh
 
 deploy:
-	./scripts/deploy_dags.sh
+	./scripts/deploy_dags.sh $(ENV)

@@ -21,5 +21,5 @@ jobs:
         run: pytest
       - name: DAG validation
         run: python scripts/validate_dags.py
-      - name: DAG policy check
-        run: python scripts/validate_dags.py
+      - name: Pipeline policy check
+        run: python scripts/policy_check.py

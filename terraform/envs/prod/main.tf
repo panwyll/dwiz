@@ -70,6 +70,9 @@ module "iam_prod" {
   oidc_provider_arn = var.oidc_provider_arn
   repo              = var.repo
   ref               = "refs/tags/v*"
+  region            = var.region
+  account_id        = var.account_id
+  resource_prefix   = var.project
 }
 
 output "dags_bucket" {

@@ -20,3 +20,7 @@ variable "oidc_provider_arn" {
 variable "repo" {
   type = string
 }
+
+variable "account_id" {
+  type = string
+}

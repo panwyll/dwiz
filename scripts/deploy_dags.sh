@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENVIRONMENT=${1:-}
+ENVIRONMENT=${1:-${ENV:-}}
 if [[ -z "${ENVIRONMENT}" ]]; then
   echo "Usage: deploy_dags.sh <dev|prod>"
   exit 1

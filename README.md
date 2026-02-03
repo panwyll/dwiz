@@ -26,7 +26,7 @@ Update `terraform/envs/dev/backend.tf` and `terraform/envs/prod/backend.tf` with
 
 ## GitHub Actions OIDC roles
 
-The `terraform/modules/iam` module creates two roles:
+The `terraform/modules/iam` module creates two roles. Provide `account_id` in env vars or `terraform.tfvars`.
 
 - `github-deploy-dev` trusts `refs/heads/main`
 - `github-deploy-prod` trusts `refs/tags/v*`

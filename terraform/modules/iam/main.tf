@@ -39,14 +39,34 @@ resource "aws_iam_role_policy" "github" {
       {
         Effect   = "Allow"
         Action   = [
-          "s3:*",
-          "mwaa:*",
-          "ecs:*",
-          "firehose:*",
-          "logs:*",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "mwaa:CreateEnvironment",
+          "mwaa:UpdateEnvironment",
+          "mwaa:DeleteEnvironment",
+          "mwaa:GetEnvironment",
+          "ecs:CreateCluster",
+          "ecs:DescribeClusters",
+          "ecs:DeleteCluster",
+          "firehose:CreateDeliveryStream",
+          "firehose:UpdateDestination",
+          "firehose:DescribeDeliveryStream",
+          "firehose:DeleteDeliveryStream",
+          "logs:CreateLogGroup",
+          "logs:PutRetentionPolicy",
+          "logs:DescribeLogGroups",
           "iam:PassRole"
         ]
-        Resource = "*"
+        Resource = [
+          "arn:aws:s3:::${var.resource_prefix}-${var.environment}-*",
+          "arn:aws:s3:::${var.resource_prefix}-${var.environment}-*/*",
+          "arn:aws:mwaa:${var.region}:${var.account_id}:environment/${var.resource_prefix}-mwaa-${var.environment}",
+          "arn:aws:ecs:${var.region}:${var.account_id}:cluster/${var.resource_prefix}-jobs-${var.environment}-cluster",
+          "arn:aws:firehose:${var.region}:${var.account_id}:deliverystream/${var.resource_prefix}-firehose-${var.environment}-firehose",
+          "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/mwaa/${var.resource_prefix}-mwaa-${var.environment}"
+        ]
         Condition = {
           StringEquals = {
             "aws:ResourceTag/Environment" = var.environment
