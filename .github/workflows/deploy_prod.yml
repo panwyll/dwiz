@@ -1,0 +1,28 @@
+name: deploy-prod
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e . ruff==0.6.9 pytest==8.3.3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_PROD }}
+          aws-region: us-east-1
+      - name: Terraform apply
+        run: make tf-init tf-apply ENV=prod
+      - name: Deploy DAGs
+        run: ./scripts/deploy_dags.sh prod
