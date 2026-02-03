@@ -14,9 +14,9 @@ Data Platform Genie provides a minimal, Terraform-first AWS data platform with A
 Create an S3 bucket and DynamoDB table for state locking (one-time). Example:
 
 ```bash
-aws s3 mb s3://<org>-genie-tf-state
+aws s3 mb s3://YOUR_ORG-genie-tf-state
 aws dynamodb create-table \
-  --table-name <org>-genie-tf-lock \
+  --table-name YOUR_ORG-genie-tf-lock \
   --billing-mode PAY_PER_REQUEST \
   --attribute-definitions AttributeName=LockID,AttributeType=S \
   --key-schema AttributeName=LockID,KeyType=HASH
