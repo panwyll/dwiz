@@ -129,7 +129,7 @@ resource "aws_iam_role_policy" "github" {
           "ec2:CreateTags"
         ]
         Resource = "*"
-        condition = {
+        Condition = {
           StringEquals = {
             "aws:RequestTag/Environment" = var.environment
           }
@@ -152,7 +152,7 @@ resource "aws_iam_role_policy" "github" {
           "ec2:DeleteTags"
         ]
         Resource = "*"
-        condition = {
+        Condition = {
           StringEquals = {
             "aws:ResourceTag/Environment" = var.environment
           }
