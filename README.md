@@ -5,7 +5,7 @@ Data Platform Genie provides a minimal, Terraform-first AWS data platform with A
 ## Prerequisites
 
 - AWS account with permissions to create IAM roles, VPC, S3, MWAA, ECS, CloudWatch, and Kinesis Firehose resources.
-- Terraform >= 1.6
+- Terraform >= 1.5
 - Python 3.11
 - AWS CLI (for local credentials) and Docker (for building job images)
 

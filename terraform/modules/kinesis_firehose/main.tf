@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.6"
+  required_version = ">= 1.5"
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "this" {

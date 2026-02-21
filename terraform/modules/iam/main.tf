@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.6"
+  required_version = ">= 1.5"
 }
 
 data "aws_iam_policy_document" "github_assume" {
