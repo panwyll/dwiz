@@ -77,6 +77,17 @@ api_key = get_secret_value("genie-dev/api-keys", "external_api")
 
 ## Monitoring
 
+The platform includes a comprehensive CloudWatch dashboard for usage and billing monitoring:
+
+- **Usage Metrics**: MWAA task/DAG execution, ECS resource utilization, Kinesis Firehose throughput, S3 storage
+- **Billing Metrics**: Estimated AWS charges by service for cost optimization
+- **Error Analysis**: Log insights for error trends and failed task identification
+- Automatically deployed per environment (dev/prod)
+- Access URL provided as Terraform output: `terraform -chdir=terraform/envs/dev output dashboard_url`
+
+See `docs/MONITORING_DASHBOARD.md` for complete usage guide and customization options.
+
+Additionally:
 - MWAA logs and metrics are sent to CloudWatch.
 - DAGs should use `libs/python_common/metrics.py` for task-level metrics and `logging.getLogger` for structured logs.
 
