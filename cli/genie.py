@@ -15,6 +15,7 @@ from cli.aws_preflight import run_preflight_check
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TERRAFORM_ENVS = {"dev", "prod"}
+NEGLIGIBLE_COST_THRESHOLD = 0.01  # Filter out costs below 1 cent
 
 
 def run(cmd: list[str], cwd: Path | None = None) -> None:
@@ -587,7 +588,7 @@ def cmd_billing(args: argparse.Namespace) -> None:
 
         total_cost = 0.0
         for service, cost in sorted_services:
-            if cost > 0.01:  # Only show services with non-negligible costs
+            if cost > NEGLIGIBLE_COST_THRESHOLD:
                 print(f"{service:<50} ${cost:>14.2f}")
                 total_cost += cost
 

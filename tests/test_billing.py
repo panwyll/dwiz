@@ -174,8 +174,8 @@ def test_billing_filters_negligible_costs(capsys) -> None:
     out = capsys.readouterr().out
     # Should display significant costs
     assert "Amazon EC2" in out
-    # Should not display negligible costs
-    assert "AWS Tax" not in out or "$0.00" not in out
+    # Should not display negligible costs (< $0.01)
+    assert "AWS Tax" not in out
 
 
 def test_billing_handles_no_data(capsys) -> None:
