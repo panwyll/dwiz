@@ -447,8 +447,8 @@ def test_bootstrap_with_sso_profile(capsys) -> None:
 
 def test_get_stored_account_id_returns_none_when_not_exists(tmp_path) -> None:
     """Test that get_stored_account_id returns None when config doesn't exist."""
-    from cli.wizard import get_stored_account_id, WIZARD_CONFIG_DIR
-    
+    from cli.wizard import get_stored_account_id
+
     with patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"):
         account_id = get_stored_account_id()
         assert account_id is None
@@ -456,12 +456,12 @@ def test_get_stored_account_id_returns_none_when_not_exists(tmp_path) -> None:
 
 def test_store_and_get_account_id(tmp_path) -> None:
     """Test that store_account_id and get_stored_account_id work together."""
-    from cli.wizard import store_account_id, get_stored_account_id
-    
+    from cli.wizard import get_stored_account_id, store_account_id
+
     with patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"):
         # Store account ID
         store_account_id("123456789012")
-        
+
         # Retrieve it
         account_id = get_stored_account_id()
         assert account_id == "123456789012"
@@ -484,36 +484,40 @@ def test_get_or_prompt_account_id_from_aws_credentials() -> None:
 def test_get_or_prompt_account_id_from_stored_value(tmp_path, monkeypatch) -> None:
     """Test that get_or_prompt_account_id uses stored value when AWS creds unavailable."""
     from cli.wizard import get_or_prompt_account_id
-    
+
     # Simulate no AWS credentials
-    with patch("cli.wizard.get_aws_account_id") as mock_get_account, \
-         patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"), \
-         patch("cli.wizard.get_stored_account_id") as mock_get_stored, \
-         patch("builtins.input") as mock_input:
+    with (
+        patch("cli.wizard.get_aws_account_id") as mock_get_account,
+        patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"),
+        patch("cli.wizard.get_stored_account_id") as mock_get_stored,
+        patch("builtins.input") as mock_input,
+    ):
         mock_get_account.return_value = None
         mock_get_stored.return_value = "555555555555"
         mock_input.return_value = "y"
-        
+
         account_id = get_or_prompt_account_id()
-        
+
         assert account_id == "555555555555"
 
 
 def test_get_or_prompt_account_id_prompts_user(tmp_path, monkeypatch) -> None:
     """Test that get_or_prompt_account_id prompts user when no stored value."""
     from cli.wizard import get_or_prompt_account_id
-    
-    with patch("cli.wizard.get_aws_account_id") as mock_get_account, \
-         patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"), \
-         patch("cli.wizard.get_stored_account_id") as mock_get_stored, \
-         patch("cli.wizard.store_account_id") as mock_store, \
-         patch("builtins.input") as mock_input:
+
+    with (
+        patch("cli.wizard.get_aws_account_id") as mock_get_account,
+        patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"),
+        patch("cli.wizard.get_stored_account_id") as mock_get_stored,
+        patch("cli.wizard.store_account_id") as mock_store,
+        patch("builtins.input") as mock_input,
+    ):
         mock_get_account.return_value = None
         mock_get_stored.return_value = None
         mock_input.return_value = "111111111111"
-        
+
         account_id = get_or_prompt_account_id()
-        
+
         assert account_id == "111111111111"
         mock_store.assert_called_once_with("111111111111")
 
@@ -521,19 +525,21 @@ def test_get_or_prompt_account_id_prompts_user(tmp_path, monkeypatch) -> None:
 def test_get_or_prompt_account_id_validates_input(tmp_path) -> None:
     """Test that get_or_prompt_account_id validates account ID format."""
     from cli.wizard import get_or_prompt_account_id
-    
-    with patch("cli.wizard.get_aws_account_id") as mock_get_account, \
-         patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"), \
-         patch("cli.wizard.get_stored_account_id") as mock_get_stored, \
-         patch("cli.wizard.store_account_id") as mock_store, \
-         patch("builtins.input") as mock_input:
+
+    with (
+        patch("cli.wizard.get_aws_account_id") as mock_get_account,
+        patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"),
+        patch("cli.wizard.get_stored_account_id") as mock_get_stored,
+        patch("cli.wizard.store_account_id"),
+        patch("builtins.input") as mock_input,
+    ):
         mock_get_account.return_value = None
         mock_get_stored.return_value = None
         # First input is invalid (too short), second is valid
         mock_input.side_effect = ["12345", "222222222222"]
-        
+
         account_id = get_or_prompt_account_id()
-        
+
         assert account_id == "222222222222"
         assert mock_input.call_count == 2
 
@@ -541,20 +547,22 @@ def test_get_or_prompt_account_id_validates_input(tmp_path) -> None:
 def test_ensure_terraform_vars_creates_tfvars(tmp_path) -> None:
     """Test that ensure_terraform_vars creates terraform.tfvars file."""
     from cli.wizard import ensure_terraform_vars
-    
+
     # Create mock environment directory
     env_dir = tmp_path / "terraform" / "envs" / "dev"
     env_dir.mkdir(parents=True)
-    
-    with patch("cli.wizard.REPO_ROOT", tmp_path), \
-         patch("cli.wizard.get_or_prompt_account_id") as mock_get_account:
+
+    with (
+        patch("cli.wizard.REPO_ROOT", tmp_path),
+        patch("cli.wizard.get_or_prompt_account_id") as mock_get_account,
+    ):
         mock_get_account.return_value = "333333333333"
-        
+
         ensure_terraform_vars("dev")
-        
+
         tfvars_file = env_dir / "terraform.tfvars"
         assert tfvars_file.exists()
-        
+
         content = tfvars_file.read_text()
         assert "account_id" in content
         assert "333333333333" in content
@@ -563,23 +571,25 @@ def test_ensure_terraform_vars_creates_tfvars(tmp_path) -> None:
 def test_ensure_terraform_vars_updates_existing_tfvars(tmp_path) -> None:
     """Test that ensure_terraform_vars updates existing terraform.tfvars."""
     from cli.wizard import ensure_terraform_vars
-    
+
     # Create mock environment directory
     env_dir = tmp_path / "terraform" / "envs" / "dev"
     env_dir.mkdir(parents=True)
-    
+
     # Create existing tfvars
     tfvars_file = env_dir / "terraform.tfvars"
     tfvars_file.write_text('repo = "old/repo"\nregion = "us-west-2"\n')
-    
-    with patch("cli.wizard.REPO_ROOT", tmp_path), \
-         patch("cli.wizard.get_or_prompt_account_id") as mock_get_account:
+
+    with (
+        patch("cli.wizard.REPO_ROOT", tmp_path),
+        patch("cli.wizard.get_or_prompt_account_id") as mock_get_account,
+    ):
         mock_get_account.return_value = "444444444444"
-        
+
         ensure_terraform_vars("dev")
-        
+
         content = tfvars_file.read_text()
-        assert "account_id = \"444444444444\"" in content
+        assert 'account_id = "444444444444"' in content
         # Should preserve existing values
-        assert "repo = \"old/repo\"" in content
-        assert "region = \"us-west-2\"" in content
+        assert 'repo = "old/repo"' in content
+        assert 'region = "us-west-2"' in content

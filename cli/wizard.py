@@ -167,7 +167,9 @@ def ensure_terraform_vars(env: str) -> None:
     
     # Determine OIDC provider ARN and repo from GitHub context if available
     # For now, we'll use placeholder values that users need to configure
-    oidc_provider_arn = f"arn:aws:iam::{account_id}:oidc-provider/token.actions.githubusercontent.com"
+    oidc_provider_arn = (
+        f"arn:aws:iam::{account_id}:oidc-provider/token.actions.githubusercontent.com"
+    )
     repo = "panwyll/dwiz"  # Default, users can override
     
     # Read existing tfvars if it exists
@@ -202,7 +204,8 @@ def ensure_terraform_vars(env: str) -> None:
             f.write(f'{key} = "{value}"\n')
     
     print(f"✓ Updated {tfvars_file}")
-    if not existing_vars.get("oidc_provider_arn") or "token.actions.githubusercontent.com" in existing_vars.get("oidc_provider_arn", ""):
+    oidc_arn = existing_vars.get("oidc_provider_arn", "")
+    if not oidc_arn or "token.actions.githubusercontent.com" in oidc_arn:
         print()
         print("Note: OIDC provider ARN needs to be configured.")
         print(f"      Edit {tfvars_file} and set the correct oidc_provider_arn value.")
