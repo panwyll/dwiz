@@ -8,3 +8,7 @@ __pycache__/
 .terraform.lock.hcl
 *.tfstate
 *.tfstate.backup
+terraform.tfvars
+
+# Wizard config (stores account ID and other local config)
+.wizard/
