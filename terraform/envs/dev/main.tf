@@ -33,14 +33,30 @@ module "s3_lake" {
   environment    = local.env
 }
 
+module "secrets_manager" {
+  source      = "../../modules/secrets_manager"
+  name        = "${var.project}-dev"
+  environment = local.env
+}
+
 module "mwaa" {
-  source            = "../../modules/mwaa"
-  name              = "${var.project}-mwaa-dev"
-  environment       = local.env
-  airflow_version   = var.airflow_version
-  dags_bucket       = "${var.project}-dags-dev"
+  source             = "../../modules/mwaa"
+  name               = "${var.project}-mwaa-dev"
+  environment        = local.env
+  airflow_version    = var.airflow_version
+  dags_bucket        = "${var.project}-dags-dev"
   private_subnet_ids = module.network.private_subnet_ids
-  vpc_id            = module.network.vpc_id
+  vpc_id             = module.network.vpc_id
+  # Grant access to predefined secrets plus any future secrets under this prefix
+  # This allows adding new secrets without Terraform changes
+  # For stricter security, remove the wildcard and only include specific secret ARNs
+  secrets_arns = [
+    module.secrets_manager.api_keys_secret_arn,
+    module.secrets_manager.database_secret_arn,
+    module.secrets_manager.streaming_secret_arn,
+    "${module.secrets_manager.secret_prefix}*"
+  ]
+  kms_key_arn = module.secrets_manager.kms_key_arn
 }
 
 module "ecs_jobs" {
