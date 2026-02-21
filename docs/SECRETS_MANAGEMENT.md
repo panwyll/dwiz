@@ -30,10 +30,10 @@ Secrets are organized by environment with the following pattern:
 ```
 
 Examples:
-- `genie-dev/api-keys` - API keys for external services (dev)
-- `genie-dev/database` - Database credentials (dev)
-- `genie-dev/streaming` - Streaming service credentials (dev)
-- `genie-prod/api-keys` - API keys for external services (prod)
+- `wizard-dev/api-keys` - API keys for external services (dev)
+- `wizard-dev/database` - Database credentials (dev)
+- `wizard-dev/streaming` - Streaming service credentials (dev)
+- `wizard-prod/api-keys` - API keys for external services (prod)
 
 ## Usage in DAGs
 
@@ -43,10 +43,10 @@ Examples:
 from libs.python_common.secrets import get_secret, get_secret_value
 
 # Get a single value from a secret
-api_key = get_secret_value("genie-dev/api-keys", "github_token")
+api_key = get_secret_value("wizard-dev/api-keys", "github_token")
 
 # Get entire secret as dictionary
-api_keys = get_secret("genie-dev/api-keys")
+api_keys = get_secret("wizard-dev/api-keys")
 github_token = api_keys["github_token"]
 slack_webhook = api_keys["slack_webhook"]
 ```
@@ -61,7 +61,7 @@ from libs.python_common.secrets import get_secret_value
 
 def fetch_data():
     # Retrieve API key securely
-    api_key = get_secret_value("genie-dev/api-keys", "external_api")
+    api_key = get_secret_value("wizard-dev/api-keys", "external_api")
     
     # Use api_key to authenticate
     # response = requests.get(url, headers={"Authorization": f"Bearer {api_key}"})
@@ -82,17 +82,17 @@ with DAG(
 ```bash
 # Create or update a secret with JSON value
 aws secretsmanager put-secret-value \
-  --secret-id genie-dev/api-keys \
+  --secret-id wizard-dev/api-keys \
   --secret-string '{"github_token":"ghp_xxx","slack_webhook":"https://hooks.slack.com/xxx"}'
 
 # Create or update database credentials
 aws secretsmanager put-secret-value \
-  --secret-id genie-dev/database \
+  --secret-id wizard-dev/database \
   --secret-string '{"host":"db.example.com","username":"app_user","password":"xxx"}'
 
 # Create or update streaming credentials
 aws secretsmanager put-secret-value \
-  --secret-id genie-dev/streaming \
+  --secret-id wizard-dev/streaming \
   --secret-string '{"api_key":"xxx","endpoint":"https://stream.example.com"}'
 ```
 
@@ -113,13 +113,13 @@ aws secretsmanager put-secret-value \
 ```bash
 # View secret value
 aws secretsmanager get-secret-value \
-  --secret-id genie-dev/api-keys \
+  --secret-id wizard-dev/api-keys \
   --query SecretString \
   --output text | jq .
 
 # Get specific key from secret
 aws secretsmanager get-secret-value \
-  --secret-id genie-dev/api-keys \
+  --secret-id wizard-dev/api-keys \
   --query SecretString \
   --output text | jq -r '.github_token'
 ```
@@ -254,11 +254,11 @@ clear_cache()
 ```python
 def process_data():
     # Get different types of credentials
-    db_host = get_secret_value("genie-dev/database", "host")
-    db_user = get_secret_value("genie-dev/database", "username")
-    db_pass = get_secret_value("genie-dev/database", "password")
+    db_host = get_secret_value("wizard-dev/database", "host")
+    db_user = get_secret_value("wizard-dev/database", "username")
+    db_pass = get_secret_value("wizard-dev/database", "password")
     
-    api_key = get_secret_value("genie-dev/api-keys", "external_api")
+    api_key = get_secret_value("wizard-dev/api-keys", "external_api")
     
     # Use credentials...
 ```
@@ -272,7 +272,7 @@ def get_env_secret(secret_category: str, key: str) -> str:
     """Get secret based on current environment."""
     # Environment is typically set via MWAA environment variables
     env = os.getenv("ENVIRONMENT", "dev")
-    secret_name = f"genie-{env}/{secret_category}"
+    secret_name = f"wizard-{env}/{secret_category}"
     return get_secret_value(secret_name, key)
 
 # Usage
@@ -311,5 +311,5 @@ API_KEY = "hardcoded_key_12345"  # Bad!
 
 # After
 from libs.python_common.secrets import get_secret_value
-api_key = get_secret_value("genie-dev/api-keys", "external_api")  # Good!
+api_key = get_secret_value("wizard-dev/api-keys", "external_api")  # Good!
 ```

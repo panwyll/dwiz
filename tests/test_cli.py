@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from cli.genie import build_parser, cmd_bootstrap, get_aws_account_id, validate_resource_names
+from cli.wizard import build_parser, cmd_bootstrap, get_aws_account_id, validate_resource_names
 
 
 def _bootstrap_args(**kwargs) -> argparse.Namespace:
@@ -37,8 +37,8 @@ def test_bootstrap_missing_bucket_exits() -> None:
 
 def test_bootstrap_us_east_1_uses_s3_mb(capsys) -> None:
     args = _bootstrap_args(region="us-east-1")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
-        "cli.genie.check_aws_credentials"
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
+        "cli.wizard.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -65,8 +65,8 @@ def test_bootstrap_us_east_1_uses_s3_mb(capsys) -> None:
 
 def test_bootstrap_other_region_uses_create_bucket() -> None:
     args = _bootstrap_args(region="eu-west-1")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
-        "cli.genie.check_aws_credentials"
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
+        "cli.wizard.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -91,8 +91,8 @@ def test_bootstrap_other_region_uses_create_bucket() -> None:
 
 def test_bootstrap_enables_versioning() -> None:
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
-        "cli.genie.check_aws_credentials"
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
+        "cli.wizard.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -115,8 +115,8 @@ def test_bootstrap_enables_versioning() -> None:
 
 def test_bootstrap_creates_dynamodb_table() -> None:
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
-        "cli.genie.check_aws_credentials"
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
+        "cli.wizard.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -139,8 +139,8 @@ def test_bootstrap_creates_dynamodb_table() -> None:
 
 def test_bootstrap_skips_bucket_creation_when_exists(capsys) -> None:
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
-        "cli.genie.check_aws_credentials"
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
+        "cli.wizard.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -162,8 +162,8 @@ def test_bootstrap_skips_bucket_creation_when_exists(capsys) -> None:
 
 def test_bootstrap_prints_backend_config(capsys) -> None:
     args = _bootstrap_args(bucket="my-bucket", table="my-table", region="us-east-1")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
-        "cli.genie.check_aws_credentials"
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
+        "cli.wizard.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -187,51 +187,51 @@ def test_bootstrap_prints_backend_config(capsys) -> None:
 
 
 def test_get_aws_account_id_success() -> None:
-    with patch("cli.genie.get_caller_identity") as mock_identity:
+    with patch("cli.wizard.get_caller_identity") as mock_identity:
         mock_identity.return_value = ("123456789012", "arn:aws:iam::123456789012:user/test")
         account_id = get_aws_account_id()
         assert account_id == "123456789012"
 
 
 def test_get_aws_account_id_failure() -> None:
-    with patch("cli.genie.get_caller_identity") as mock_identity:
+    with patch("cli.wizard.get_caller_identity") as mock_identity:
         mock_identity.return_value = (None, None)
         account_id = get_aws_account_id()
         assert account_id is None
 
 
 def test_validate_resource_names_detects_placeholder_bucket() -> None:
-    with patch("cli.genie.get_caller_identity") as mock_identity:
+    with patch("cli.wizard.get_caller_identity") as mock_identity:
         mock_identity.return_value = (None, None)
         with pytest.raises(SystemExit) as exc_info:
-            validate_resource_names("YOUR_ORG-genie-tf-state", "my-lock")
+            validate_resource_names("YOUR_ORG-wizard-tf-state", "my-lock")
         assert "Placeholder values detected" in str(exc_info.value)
-        assert "YOUR_ORG-genie-tf-state" in str(exc_info.value)
+        assert "YOUR_ORG-wizard-tf-state" in str(exc_info.value)
 
 
 def test_validate_resource_names_detects_placeholder_table() -> None:
-    with patch("cli.genie.get_caller_identity") as mock_identity:
+    with patch("cli.wizard.get_caller_identity") as mock_identity:
         mock_identity.return_value = (None, None)
         with pytest.raises(SystemExit) as exc_info:
-            validate_resource_names("my-bucket", "YOUR_ORG-genie-tf-lock")
+            validate_resource_names("my-bucket", "YOUR_ORG-wizard-tf-lock")
         assert "Placeholder values detected" in str(exc_info.value)
-        assert "YOUR_ORG-genie-tf-lock" in str(exc_info.value)
+        assert "YOUR_ORG-wizard-tf-lock" in str(exc_info.value)
 
 
 def test_validate_resource_names_provides_suggestion_with_account_id() -> None:
-    with patch("cli.genie.get_caller_identity") as mock_identity:
+    with patch("cli.wizard.get_caller_identity") as mock_identity:
         mock_identity.return_value = ("123456789012", "arn:aws:iam::123456789012:user/test")
         with pytest.raises(SystemExit) as exc_info:
-            validate_resource_names("YOUR_ORG-genie-tf-state", "YOUR_ORG-genie-tf-lock")
+            validate_resource_names("YOUR_ORG-wizard-tf-state", "YOUR_ORG-wizard-tf-lock")
         error_msg = str(exc_info.value)
         assert "Your AWS Account ID: 123456789012" in error_msg
-        assert "123456789012-genie-tf-state" in error_msg
-        assert "123456789012-genie-tf-lock" in error_msg
+        assert "123456789012-wizard-tf-state" in error_msg
+        assert "123456789012-wizard-tf-lock" in error_msg
 
 
 def test_validate_resource_names_handles_all_placeholder_patterns() -> None:
     """Test that all placeholder patterns are replaced in suggestions."""
-    with patch("cli.genie.get_caller_identity") as mock_identity:
+    with patch("cli.wizard.get_caller_identity") as mock_identity:
         mock_identity.return_value = ("987654321098", "arn:aws:iam::987654321098:user/test")
         # Test YOUR_ACCOUNT pattern
         with pytest.raises(SystemExit) as exc_info:
@@ -243,10 +243,10 @@ def test_validate_resource_names_handles_all_placeholder_patterns() -> None:
 
 
 def test_validate_resource_names_provides_help_without_account_id() -> None:
-    with patch("cli.genie.get_caller_identity") as mock_identity:
+    with patch("cli.wizard.get_caller_identity") as mock_identity:
         mock_identity.return_value = (None, None)
         with pytest.raises(SystemExit) as exc_info:
-            validate_resource_names("YOUR-ORG-genie-tf-state", "my-lock")
+            validate_resource_names("YOUR-ORG-wizard-tf-state", "my-lock")
         error_msg = str(exc_info.value)
         assert "aws sts get-caller-identity" in error_msg
         assert "console.aws.amazon.com" in error_msg
@@ -284,10 +284,10 @@ def test_validate_resource_names_valid_names() -> None:
 
 
 def test_bootstrap_validates_names_before_creating() -> None:
-    args = _bootstrap_args(bucket="YOUR_ORG-genie-tf-state", table="my-lock")
-    with patch("cli.genie.require_tools"), patch(
-        "cli.genie.get_caller_identity"
-    ) as mock_identity, patch("cli.genie.check_aws_credentials") as mock_check_creds:
+    args = _bootstrap_args(bucket="YOUR_ORG-wizard-tf-state", table="my-lock")
+    with patch("cli.wizard.require_tools"), patch(
+        "cli.wizard.get_caller_identity"
+    ) as mock_identity, patch("cli.wizard.check_aws_credentials") as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_identity.return_value = (None, None)
         with pytest.raises(SystemExit) as exc_info:
@@ -298,8 +298,8 @@ def test_bootstrap_validates_names_before_creating() -> None:
 def test_bootstrap_handles_s3_permission_error(capsys) -> None:
     """Test bootstrap provides helpful suggestions when S3 CreateBucket fails with AccessDenied."""
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
-        "cli.genie.check_aws_credentials"
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
+        "cli.wizard.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -327,7 +327,7 @@ def test_bootstrap_handles_s3_permission_error(capsys) -> None:
             mock_s3 if service == "s3" else mock_dynamodb
         )
 
-        with patch("cli.genie.get_caller_identity") as mock_identity:
+        with patch("cli.wizard.get_caller_identity") as mock_identity:
             mock_identity.return_value = ("903783614598", "arn:aws:iam::903783614598:user/dwiz")
 
             with pytest.raises(SystemExit):
@@ -344,8 +344,8 @@ def test_bootstrap_handles_s3_permission_error(capsys) -> None:
 def test_bootstrap_handles_dynamodb_permission_error(capsys) -> None:
     """Test bootstrap provides helpful suggestions when DynamoDB CreateTable fails."""
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
-        "cli.genie.check_aws_credentials"
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
+        "cli.wizard.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -376,7 +376,7 @@ def test_bootstrap_handles_dynamodb_permission_error(capsys) -> None:
             mock_s3 if service == "s3" else mock_dynamodb
         )
 
-        with patch("cli.genie.get_caller_identity") as mock_identity:
+        with patch("cli.wizard.get_caller_identity") as mock_identity:
             mock_identity.return_value = ("123456789012", "arn:aws:iam::123456789012:user/test")
 
             with pytest.raises(SystemExit):
@@ -393,7 +393,7 @@ def test_bootstrap_checks_credentials_first(capsys) -> None:
     from botocore.exceptions import NoCredentialsError
 
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch.dict(
+    with patch("cli.wizard.require_tools"), patch.dict(
         "os.environ", {}, clear=True
     ), patch("boto3.Session") as mock_session_class:
         mock_session = MagicMock()
@@ -419,9 +419,9 @@ def test_bootstrap_with_sso_profile(capsys) -> None:
         "Arn": "arn:aws:sts::123456789012:assumed-role/MySSORole/session",
     }
 
-    with patch("cli.genie.require_tools"), patch.dict(
+    with patch("cli.wizard.require_tools"), patch.dict(
         "os.environ", {"AWS_PROFILE": "my-sso-profile"}
-    ), patch("boto3.Session") as mock_session_class, patch("cli.genie.boto3") as mock_boto3:
+    ), patch("boto3.Session") as mock_session_class, patch("cli.wizard.boto3") as mock_boto3:
         # Mock credential check
         mock_session = MagicMock()
         mock_sts = MagicMock()

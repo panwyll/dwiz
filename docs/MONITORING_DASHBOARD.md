@@ -69,10 +69,10 @@ terraform -chdir=terraform/envs/dev output dashboard_url
 terraform -chdir=terraform/envs/prod output dashboard_url
 ```
 
-Or use the `genie` CLI (if you add a command to display outputs):
+Or use the `wizard` CLI (if you add a command to display outputs):
 
 ```bash
-genie show-dashboard dev
+wizard show-dashboard dev
 ```
 
 The dashboard is also accessible through the AWS Console:

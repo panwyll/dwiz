@@ -10,7 +10,7 @@ if [[ -z "${ACCOUNT_ID}" ]]; then
   exit 1
 fi
 
-ECR_REPO="genie-jobs"
+ECR_REPO="wizard-jobs"
 aws ecr describe-repositories --repository-names "${ECR_REPO}" --region "${REGION}" >/dev/null 2>&1 || \
   aws ecr create-repository --repository-name "${ECR_REPO}" --region "${REGION}"
 

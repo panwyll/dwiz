@@ -32,7 +32,7 @@ def get_secret(secret_name: str, region_name: str = "us-east-1") -> dict[str, An
         json.JSONDecodeError: If the secret value is not valid JSON
 
     Example:
-        >>> api_keys = get_secret("genie-dev/api-keys")
+        >>> api_keys = get_secret("wizard-dev/api-keys")
         >>> api_key = api_keys.get("external_api_key")
     """
     cache_key = f"{region_name}:{secret_name}"
@@ -89,7 +89,7 @@ def get_secret_value(secret_name: str, key: str, region_name: str = "us-east-1")
         ClientError: If the secret cannot be retrieved
 
     Example:
-        >>> api_key = get_secret_value("genie-dev/api-keys", "external_api_key")
+        >>> api_key = get_secret_value("wizard-dev/api-keys", "external_api_key")
     """
     secret = get_secret(secret_name, region_name)
     if key not in secret:

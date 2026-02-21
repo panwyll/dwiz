@@ -1,7 +1,7 @@
 [project]
-name = "data-platform-genie"
+name = "data-platform-wizard"
 version = "0.1.0"
-description = "Data Platform Genie v1"
+description = "Data Platform Wizard v1"
 requires-python = ">=3.11"
 dependencies = [
   "PyYAML==6.0.1",
@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [project.scripts]
-genie = "cli.genie:main"
+wizard = "cli.wizard:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

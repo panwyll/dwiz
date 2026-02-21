@@ -1,6 +1,6 @@
-# Data Platform Genie v1
+# Data Platform Wizard v1
 
-Data Platform Genie provides a minimal, Terraform-first AWS data platform with Airflow (MWAA), S3 data lake, optional ECS jobs, and streaming ingest via Kinesis Firehose. This repository ships with example DAGs and a CLI to manage deployments.
+Data Platform Wizard provides a minimal, Terraform-first AWS data platform with Airflow (MWAA), S3 data lake, optional ECS jobs, and streaming ingest via Kinesis Firehose. This repository ships with example DAGs and a CLI to manage deployments.
 
 ## Prerequisites
 
@@ -15,14 +15,14 @@ Data Platform Genie provides a minimal, Terraform-first AWS data platform with A
 make install
 ```
 
-This installs the `genie` CLI so you can run `genie <command>` from anywhere in the repo.
+This installs the `wizard` CLI so you can run `wizard <command>` from anywhere in the repo.
 
 ## Bootstrap remote state
 
 Create the S3 bucket and DynamoDB table for Terraform state with a single command (one-time):
 
 ```bash
-genie bootstrap --bucket YOUR_ORG-genie-tf-state --table YOUR_ORG-genie-tf-lock
+wizard bootstrap --bucket YOUR_ORG-wizard-tf-state --table YOUR_ORG-wizard-tf-lock
 ```
 
 Then update `terraform/envs/dev/backend.tf` and `terraform/envs/prod/backend.tf` with the printed values.
@@ -39,16 +39,16 @@ The trust policy is scoped to this repo and specific ref. Policies are scoped to
 ## Deploy dev
 
 ```bash
-genie init
-genie up dev
-genie deploy dev
+wizard init
+wizard up dev
+wizard deploy dev
 ```
 
 ## Promote to prod
 
 ```bash
-genie up prod
-genie deploy prod
+wizard up prod
+wizard deploy prod
 ```
 
 For GitHub Actions, push a tag `v*` to run the prod workflow.
@@ -57,7 +57,7 @@ For GitHub Actions, push a tag `v*` to run the prod workflow.
 
 - `dags/templates/stream_compaction.py` and `dags/templates/batch_api_ingest.py` show recommended structure.
 - Add sources in `pipelines/sources` and streams in `pipelines/streams`.
-- Use `genie new-source <name>` and `genie add-stream <name>` to scaffold files.
+- Use `wizard new-source <name>` and `wizard add-stream <name>` to scaffold files.
 
 All DAGs must set `owner`, `tags`, `schedule_interval`, `catchup`, and `max_active_runs`.
 
@@ -72,7 +72,7 @@ Secure storage of API keys, database credentials, and other secrets via AWS Secr
 ```python
 from libs.python_common.secrets import get_secret_value
 
-api_key = get_secret_value("genie-dev/api-keys", "external_api")
+api_key = get_secret_value("wizard-dev/api-keys", "external_api")
 ```
 
 ## Monitoring

@@ -1,0 +1,14 @@
+project: wizard
+region: us-east-1
+account_id: "123456789012"
+state_bucket: org-wizard-tf-state
+state_lock_table: org-wizard-tf-lock
+mwaa:
+  environment: wizard-dev
+  airflow_version: "2.7.2"
+  dag_s3_path: dags
+s3_lake:
+  raw_bucket: wizard-raw-dev
+  curated_bucket: wizard-curated-dev
+observability:
+  log_retention_days: 14
