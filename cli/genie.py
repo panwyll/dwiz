@@ -30,11 +30,111 @@ def run_make(target: str, env: str | None = None) -> None:
         raise SystemExit(result.returncode)
 
 
+def get_aws_account_id() -> str | None:
+    """Try to get AWS account ID from current credentials."""
+    result = subprocess.run(
+        ["aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    return None
+
+
+def validate_resource_names(bucket: str, table: str) -> None:
+    """Validate bucket and table names, detecting placeholders and providing helpful errors."""
+    # Check for placeholder patterns
+    placeholder_patterns = [
+        "YOUR_ORG",
+        "YOUR-ORG",
+        "YOURORG",
+        "YOUR_ACCOUNT",
+        "YOUR-ACCOUNT",
+    ]
+
+    bucket_has_placeholder = any(
+        pattern.lower() in bucket.lower() for pattern in placeholder_patterns
+    )
+    table_has_placeholder = any(
+        pattern.lower() in table.lower() for pattern in placeholder_patterns
+    )
+
+    if bucket_has_placeholder or table_has_placeholder:
+        error_parts = []
+        error_parts.append("Error: Placeholder values detected in resource names.")
+        error_parts.append("")
+
+        if bucket_has_placeholder:
+            error_parts.append(f"  Bucket name contains placeholder: {bucket}")
+        if table_has_placeholder:
+            error_parts.append(f"  Table name contains placeholder: {table}")
+
+        error_parts.append("")
+        error_parts.append(
+            "You need to replace placeholders with your actual AWS organization "
+            "or account identifier."
+        )
+        error_parts.append("")
+
+        # Try to get AWS account ID
+        account_id = get_aws_account_id()
+        if account_id:
+            error_parts.append(f"Your AWS Account ID: {account_id}")
+            error_parts.append("")
+            # Replace all placeholder patterns with account ID
+            suggested_bucket = bucket
+            suggested_table = table
+            for pattern in placeholder_patterns:
+                suggested_bucket = suggested_bucket.replace(pattern, account_id)
+                suggested_table = suggested_table.replace(pattern, account_id)
+            error_parts.append("Suggested command with your account ID:")
+            error_parts.append(
+                f"  genie bootstrap --bucket {suggested_bucket} --table {suggested_table}"
+            )
+        else:
+            error_parts.append("To find your AWS Account ID, run:")
+            error_parts.append("  aws sts get-caller-identity --query Account --output text")
+            error_parts.append("")
+            error_parts.append(
+                "Or check the AWS Console at: https://console.aws.amazon.com/billing/home#/account"
+            )
+
+        raise SystemExit("\n".join(error_parts))
+
+    # Basic S3 bucket name validation
+    if len(bucket) < 3 or len(bucket) > 63:
+        raise SystemExit(
+            f"Error: S3 bucket name must be between 3 and 63 characters. Got: {bucket}"
+        )
+
+    if not all(c.islower() or c.isdigit() or c in "-." for c in bucket):
+        raise SystemExit(
+            f"Error: S3 bucket name can only contain lowercase letters, numbers, "
+            f"hyphens, and periods.\nGot: {bucket}"
+        )
+
+    if (
+        bucket.startswith("-")
+        or bucket.endswith("-")
+        or bucket.startswith(".")
+        or bucket.endswith(".")
+    ):
+        raise SystemExit(
+            f"Error: S3 bucket name cannot start or end with a hyphen or period.\n"
+            f"Got: {bucket}"
+        )
+
+
 def cmd_bootstrap(args: argparse.Namespace) -> None:
     require_tools("aws")
     region = args.region
     bucket = args.bucket
     table = args.table
+    
+    # Validate resource names before attempting to create them
+    validate_resource_names(bucket, table)
 
     bucket_exists = (
         subprocess.run(
