@@ -1,32 +1,33 @@
 from pathlib import Path
 
+# Get repository root from test file location
+REPO_ROOT = Path(__file__).parent.parent
+
 
 def test_dashboard_module_exists():
     """Test that the dashboard module directory exists"""
-    dashboard_path = Path("/home/runner/work/dwiz/dwiz/terraform/modules/dashboard")
+    dashboard_path = REPO_ROOT / "terraform/modules/dashboard"
     assert dashboard_path.exists()
     assert dashboard_path.is_dir()
 
 
 def test_dashboard_main_tf_exists():
     """Test that dashboard main.tf exists"""
-    main_tf = Path("/home/runner/work/dwiz/dwiz/terraform/modules/dashboard/main.tf")
+    main_tf = REPO_ROOT / "terraform/modules/dashboard/main.tf"
     assert main_tf.exists()
     assert main_tf.is_file()
 
 
 def test_dashboard_variables_tf_exists():
     """Test that dashboard variables.tf exists"""
-    variables_tf = Path(
-        "/home/runner/work/dwiz/dwiz/terraform/modules/dashboard/variables.tf"
-    )
+    variables_tf = REPO_ROOT / "terraform/modules/dashboard/variables.tf"
     assert variables_tf.exists()
     assert variables_tf.is_file()
 
 
 def test_dashboard_main_tf_content():
     """Test that dashboard main.tf contains required CloudWatch dashboard resource"""
-    main_tf = Path("/home/runner/work/dwiz/dwiz/terraform/modules/dashboard/main.tf")
+    main_tf = REPO_ROOT / "terraform/modules/dashboard/main.tf"
     content = main_tf.read_text()
 
     # Check for CloudWatch dashboard resource
@@ -49,9 +50,7 @@ def test_dashboard_main_tf_content():
 
 def test_dashboard_variables_tf_content():
     """Test that dashboard variables.tf contains required variables"""
-    variables_tf = Path(
-        "/home/runner/work/dwiz/dwiz/terraform/modules/dashboard/variables.tf"
-    )
+    variables_tf = REPO_ROOT / "terraform/modules/dashboard/variables.tf"
     content = variables_tf.read_text()
 
     # Check for required variables
@@ -63,7 +62,7 @@ def test_dashboard_variables_tf_content():
 
 def test_dashboard_integrated_in_dev():
     """Test that dashboard module is integrated in dev environment"""
-    dev_main = Path("/home/runner/work/dwiz/dwiz/terraform/envs/dev/main.tf")
+    dev_main = REPO_ROOT / "terraform/envs/dev/main.tf"
     content = dev_main.read_text()
 
     # Check dashboard module is included
@@ -74,7 +73,7 @@ def test_dashboard_integrated_in_dev():
 
 def test_dashboard_integrated_in_prod():
     """Test that dashboard module is integrated in prod environment"""
-    prod_main = Path("/home/runner/work/dwiz/dwiz/terraform/envs/prod/main.tf")
+    prod_main = REPO_ROOT / "terraform/envs/prod/main.tf"
     content = prod_main.read_text()
 
     # Check dashboard module is included
@@ -85,7 +84,7 @@ def test_dashboard_integrated_in_prod():
 
 def test_dashboard_outputs_in_dev():
     """Test that dashboard outputs are present in dev environment"""
-    dev_main = Path("/home/runner/work/dwiz/dwiz/terraform/envs/dev/main.tf")
+    dev_main = REPO_ROOT / "terraform/envs/dev/main.tf"
     content = dev_main.read_text()
 
     # Check dashboard URL output
@@ -95,7 +94,7 @@ def test_dashboard_outputs_in_dev():
 
 def test_dashboard_outputs_in_prod():
     """Test that dashboard outputs are present in prod environment"""
-    prod_main = Path("/home/runner/work/dwiz/dwiz/terraform/envs/prod/main.tf")
+    prod_main = REPO_ROOT / "terraform/envs/prod/main.tf"
     content = prod_main.read_text()
 
     # Check dashboard URL output
