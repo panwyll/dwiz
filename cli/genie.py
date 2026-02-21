@@ -198,8 +198,8 @@ def print_permission_error_remediation(
     if identity_type == "user" and identity_name:
         print("Create a Terraform configuration file (e.g., iam-permissions.tf):")
         print()
-        print(f'resource "aws_iam_user_policy" "dwiz_bootstrap" {{')
-        print(f'  name = "DWizBootstrapPermissions"')
+        print('resource "aws_iam_user_policy" "dwiz_bootstrap" {')
+        print('  name = "DWizBootstrapPermissions"')
         print(f'  user = "{identity_name}"')
         print()
         print('  policy = jsonencode({')
@@ -216,8 +216,8 @@ def print_permission_error_remediation(
     elif identity_type in ["role", "assumed-role"] and identity_name:
         print("Create a Terraform configuration file (e.g., iam-permissions.tf):")
         print()
-        print(f'resource "aws_iam_role_policy" "dwiz_bootstrap" {{')
-        print(f'  name = "DWizBootstrapPermissions"')
+        print('resource "aws_iam_role_policy" "dwiz_bootstrap" {')
+        print('  name = "DWizBootstrapPermissions"')
         print(f'  role = "{identity_name}"')
         print()
         print('  policy = jsonencode({')

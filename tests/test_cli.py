@@ -46,7 +46,8 @@ def test_bootstrap_us_east_1_uses_s3_mb(capsys) -> None:
         )
         # Simulate table doesn't exist
         mock_dynamodb.describe_table.side_effect = ClientError(
-            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}}, "DescribeTable"
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}},
+            "DescribeTable",
         )
         mock_boto3.client.side_effect = lambda service, **kwargs: (
             mock_s3 if service == "s3" else mock_dynamodb
@@ -68,7 +69,8 @@ def test_bootstrap_other_region_uses_create_bucket() -> None:
             {"Error": {"Code": "404", "Message": "Not Found"}}, "HeadBucket"
         )
         mock_dynamodb.describe_table.side_effect = ClientError(
-            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}}, "DescribeTable"
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}},
+            "DescribeTable",
         )
         mock_boto3.client.side_effect = lambda service, **kwargs: (
             mock_s3 if service == "s3" else mock_dynamodb
@@ -90,7 +92,8 @@ def test_bootstrap_enables_versioning() -> None:
             {"Error": {"Code": "404", "Message": "Not Found"}}, "HeadBucket"
         )
         mock_dynamodb.describe_table.side_effect = ClientError(
-            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}}, "DescribeTable"
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}},
+            "DescribeTable",
         )
         mock_boto3.client.side_effect = lambda service, **kwargs: (
             mock_s3 if service == "s3" else mock_dynamodb
@@ -110,7 +113,8 @@ def test_bootstrap_creates_dynamodb_table() -> None:
             {"Error": {"Code": "404", "Message": "Not Found"}}, "HeadBucket"
         )
         mock_dynamodb.describe_table.side_effect = ClientError(
-            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}}, "DescribeTable"
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}},
+            "DescribeTable",
         )
         mock_boto3.client.side_effect = lambda service, **kwargs: (
             mock_s3 if service == "s3" else mock_dynamodb
@@ -150,7 +154,8 @@ def test_bootstrap_prints_backend_config(capsys) -> None:
             {"Error": {"Code": "404", "Message": "Not Found"}}, "HeadBucket"
         )
         mock_dynamodb.describe_table.side_effect = ClientError(
-            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}}, "DescribeTable"
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}},
+            "DescribeTable",
         )
         mock_boto3.client.side_effect = lambda service, **kwargs: (
             mock_s3 if service == "s3" else mock_dynamodb
@@ -270,7 +275,7 @@ def test_bootstrap_validates_names_before_creating() -> None:
 
 
 def test_bootstrap_handles_s3_permission_error(capsys) -> None:
-    """Test that bootstrap provides helpful suggestions when S3 CreateBucket fails with AccessDenied."""
+    """Test bootstrap provides helpful suggestions when S3 CreateBucket fails with AccessDenied."""
     args = _bootstrap_args()
     with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
         mock_s3 = MagicMock()
@@ -280,11 +285,16 @@ def test_bootstrap_handles_s3_permission_error(capsys) -> None:
             {"Error": {"Code": "404", "Message": "Not Found"}}, "HeadBucket"
         )
         # Simulate CreateBucket permission denied
+        error_msg = (
+            "User: arn:aws:iam::903783614598:user/dwiz is not authorized to "
+            "perform: s3:CreateBucket on resource: arn:aws:s3:::test-bucket "
+            "because no identity-based policy allows the s3:CreateBucket action"
+        )
         mock_s3.create_bucket.side_effect = ClientError(
             {
                 "Error": {
                     "Code": "AccessDenied",
-                    "Message": "User: arn:aws:iam::903783614598:user/dwiz is not authorized to perform: s3:CreateBucket on resource: arn:aws:s3:::test-bucket because no identity-based policy allows the s3:CreateBucket action",
+                    "Message": error_msg,
                 }
             },
             "CreateBucket",
@@ -308,7 +318,7 @@ def test_bootstrap_handles_s3_permission_error(capsys) -> None:
 
 
 def test_bootstrap_handles_dynamodb_permission_error(capsys) -> None:
-    """Test that bootstrap provides helpful suggestions when DynamoDB CreateTable fails with AccessDenied."""
+    """Test bootstrap provides helpful suggestions when DynamoDB CreateTable fails."""
     args = _bootstrap_args()
     with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
         mock_s3 = MagicMock()
@@ -319,13 +329,18 @@ def test_bootstrap_handles_dynamodb_permission_error(capsys) -> None:
         )
         # DynamoDB CreateTable permission denied
         mock_dynamodb.describe_table.side_effect = ClientError(
-            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}}, "DescribeTable"
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "Not Found"}},
+            "DescribeTable",
+        )
+        error_msg = (
+            "User: arn:aws:iam::123456789012:user/test is not authorized to "
+            "perform: dynamodb:CreateTable"
         )
         mock_dynamodb.create_table.side_effect = ClientError(
             {
                 "Error": {
                     "Code": "AccessDenied",
-                    "Message": "User: arn:aws:iam::123456789012:user/test is not authorized to perform: dynamodb:CreateTable",
+                    "Message": error_msg,
                 }
             },
             "CreateTable",
