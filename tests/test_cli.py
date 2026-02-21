@@ -37,7 +37,10 @@ def test_bootstrap_missing_bucket_exits() -> None:
 
 def test_bootstrap_us_east_1_uses_s3_mb(capsys) -> None:
     args = _bootstrap_args(region="us-east-1")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
+        "cli.genie.check_aws_credentials"
+    ) as mock_check_creds:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
         mock_dynamodb = MagicMock()
         # Simulate bucket doesn't exist
@@ -62,7 +65,10 @@ def test_bootstrap_us_east_1_uses_s3_mb(capsys) -> None:
 
 def test_bootstrap_other_region_uses_create_bucket() -> None:
     args = _bootstrap_args(region="eu-west-1")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
+        "cli.genie.check_aws_credentials"
+    ) as mock_check_creds:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
         mock_dynamodb = MagicMock()
         mock_s3.head_bucket.side_effect = ClientError(
@@ -85,7 +91,10 @@ def test_bootstrap_other_region_uses_create_bucket() -> None:
 
 def test_bootstrap_enables_versioning() -> None:
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
+        "cli.genie.check_aws_credentials"
+    ) as mock_check_creds:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
         mock_dynamodb = MagicMock()
         mock_s3.head_bucket.side_effect = ClientError(
@@ -106,7 +115,10 @@ def test_bootstrap_enables_versioning() -> None:
 
 def test_bootstrap_creates_dynamodb_table() -> None:
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
+        "cli.genie.check_aws_credentials"
+    ) as mock_check_creds:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
         mock_dynamodb = MagicMock()
         mock_s3.head_bucket.side_effect = ClientError(
@@ -127,7 +139,10 @@ def test_bootstrap_creates_dynamodb_table() -> None:
 
 def test_bootstrap_skips_bucket_creation_when_exists(capsys) -> None:
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
+        "cli.genie.check_aws_credentials"
+    ) as mock_check_creds:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
         mock_dynamodb = MagicMock()
         # head_bucket and describe_table succeed (resources exist)
@@ -147,7 +162,10 @@ def test_bootstrap_skips_bucket_creation_when_exists(capsys) -> None:
 
 def test_bootstrap_prints_backend_config(capsys) -> None:
     args = _bootstrap_args(bucket="my-bucket", table="my-table", region="us-east-1")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
+        "cli.genie.check_aws_credentials"
+    ) as mock_check_creds:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
         mock_dynamodb = MagicMock()
         mock_s3.head_bucket.side_effect = ClientError(
@@ -267,7 +285,10 @@ def test_validate_resource_names_valid_names() -> None:
 
 def test_bootstrap_validates_names_before_creating() -> None:
     args = _bootstrap_args(bucket="YOUR_ORG-genie-tf-state", table="my-lock")
-    with patch("cli.genie.require_tools"), patch("cli.genie.get_caller_identity") as mock_identity:
+    with patch("cli.genie.require_tools"), patch(
+        "cli.genie.get_caller_identity"
+    ) as mock_identity, patch("cli.genie.check_aws_credentials") as mock_check_creds:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_identity.return_value = (None, None)
         with pytest.raises(SystemExit) as exc_info:
             cmd_bootstrap(args)
@@ -277,7 +298,10 @@ def test_bootstrap_validates_names_before_creating() -> None:
 def test_bootstrap_handles_s3_permission_error(capsys) -> None:
     """Test bootstrap provides helpful suggestions when S3 CreateBucket fails with AccessDenied."""
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
+        "cli.genie.check_aws_credentials"
+    ) as mock_check_creds:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
         mock_dynamodb = MagicMock()
         # Simulate bucket doesn't exist
@@ -320,7 +344,10 @@ def test_bootstrap_handles_s3_permission_error(capsys) -> None:
 def test_bootstrap_handles_dynamodb_permission_error(capsys) -> None:
     """Test bootstrap provides helpful suggestions when DynamoDB CreateTable fails."""
     args = _bootstrap_args()
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3, patch(
+        "cli.genie.check_aws_credentials"
+    ) as mock_check_creds:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
         mock_dynamodb = MagicMock()
         # S3 operations succeed
@@ -359,3 +386,60 @@ def test_bootstrap_handles_dynamodb_permission_error(capsys) -> None:
         # Check for remediation output
         assert "AWS PERMISSION ERROR" in out
         assert "dynamodb:CreateTable" in out
+
+
+def test_bootstrap_checks_credentials_first(capsys) -> None:
+    """Test that bootstrap checks credentials before doing anything else."""
+    from botocore.exceptions import NoCredentialsError
+
+    args = _bootstrap_args()
+    with patch("cli.genie.require_tools"), patch.dict(
+        "os.environ", {}, clear=True
+    ), patch("boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.side_effect = NoCredentialsError()
+        mock_session.client.return_value = mock_sts
+        mock_session_class.return_value = mock_session
+
+        with pytest.raises(SystemExit) as exc_info:
+            cmd_bootstrap(args)
+
+        assert exc_info.value.code == 1
+        out = capsys.readouterr().out
+        assert "No AWS credentials found" in out
+        assert "aws configure sso" in out
+
+
+def test_bootstrap_with_sso_profile(capsys) -> None:
+    """Test bootstrap with AWS_PROFILE set for SSO."""
+    args = _bootstrap_args()
+    mock_response = {
+        "Account": "123456789012",
+        "Arn": "arn:aws:sts::123456789012:assumed-role/MySSORole/session",
+    }
+
+    with patch("cli.genie.require_tools"), patch.dict(
+        "os.environ", {"AWS_PROFILE": "my-sso-profile"}
+    ), patch("boto3.Session") as mock_session_class, patch("cli.genie.boto3") as mock_boto3:
+        # Mock credential check
+        mock_session = MagicMock()
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.return_value = mock_response
+        mock_session.client.return_value = mock_sts
+        mock_session_class.return_value = mock_session
+
+        # Mock S3 and DynamoDB clients
+        mock_s3 = MagicMock()
+        mock_dynamodb = MagicMock()
+        mock_s3.head_bucket.return_value = {}
+        mock_dynamodb.describe_table.return_value = {}
+        mock_boto3.client.side_effect = lambda service, **kwargs: (
+            mock_s3 if service == "s3" else mock_dynamodb
+        )
+
+        cmd_bootstrap(args)
+
+        out = capsys.readouterr().out
+        assert "my-sso-profile" in out
+        assert "Bootstrap complete" in out

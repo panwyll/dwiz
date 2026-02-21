@@ -429,7 +429,10 @@ def test_print_remediation_with_failures(capsys) -> None:
 
 def test_run_preflight_check_success(capsys) -> None:
     """Test successful preflight check."""
-    with patch("cli.aws_preflight.AWSPreflight") as mock_preflight_class:
+    with patch("cli.aws_preflight.check_aws_credentials") as mock_check_creds, patch(
+        "cli.aws_preflight.AWSPreflight"
+    ) as mock_preflight_class:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_preflight = MagicMock()
         mock_preflight.run_all_probes.return_value = [
             ProbeResult(
@@ -446,7 +449,10 @@ def test_run_preflight_check_success(capsys) -> None:
 
 def test_run_preflight_check_with_write_probes(capsys) -> None:
     """Test preflight check with write probes enabled."""
-    with patch("cli.aws_preflight.AWSPreflight") as mock_preflight_class:
+    with patch("cli.aws_preflight.check_aws_credentials") as mock_check_creds, patch(
+        "cli.aws_preflight.AWSPreflight"
+    ) as mock_preflight_class:
+        mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_preflight = MagicMock()
         mock_preflight.run_all_probes.return_value = [
             ProbeResult(
@@ -519,3 +525,177 @@ def test_deploy_command_runs_preflight() -> None:
     ) as mock_preflight:
         cmd_deploy(args)
         mock_preflight.assert_called_once_with(verbose=False, write_probes=False)
+
+
+def test_check_aws_credentials_with_profile_success() -> None:
+    """Test credential check with AWS_PROFILE set and valid credentials."""
+    from cli.aws_preflight import check_aws_credentials
+
+    mock_response = {
+        "Account": "123456789012",
+        "Arn": "arn:aws:sts::123456789012:assumed-role/MySSORole/session",
+    }
+
+    with patch.dict("os.environ", {"AWS_PROFILE": "my-sso-profile"}), patch(
+        "boto3.Session"
+    ) as mock_session_class:
+        mock_session = MagicMock()
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.return_value = mock_response
+        mock_session.client.return_value = mock_sts
+        mock_session_class.return_value = mock_session
+
+        creds_ok, msg = check_aws_credentials()
+
+        assert creds_ok is True
+        assert "my-sso-profile" in msg
+        assert "arn:aws:sts::123456789012:assumed-role/MySSORole/session" in msg
+
+
+def test_check_aws_credentials_without_profile_success() -> None:
+    """Test credential check without AWS_PROFILE but valid credentials."""
+    from cli.aws_preflight import check_aws_credentials
+
+    mock_response = {
+        "Account": "123456789012",
+        "Arn": "arn:aws:iam::123456789012:user/test-user",
+    }
+
+    with patch.dict("os.environ", {}, clear=True), patch("boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.return_value = mock_response
+        mock_session.client.return_value = mock_sts
+        mock_session_class.return_value = mock_session
+
+        creds_ok, msg = check_aws_credentials()
+
+        assert creds_ok is True
+        assert "default AWS credentials" in msg
+
+
+def test_check_aws_credentials_no_credentials_with_profile() -> None:
+    """Test credential check with AWS_PROFILE set but no credentials."""
+    from botocore.exceptions import NoCredentialsError
+
+    from cli.aws_preflight import check_aws_credentials
+
+    with patch.dict("os.environ", {"AWS_PROFILE": "my-profile"}), patch(
+        "boto3.Session"
+    ) as mock_session_class:
+        mock_session = MagicMock()
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.side_effect = NoCredentialsError()
+        mock_session.client.return_value = mock_sts
+        mock_session_class.return_value = mock_session
+
+        creds_ok, msg = check_aws_credentials()
+
+        assert creds_ok is False
+        assert "my-profile" in msg
+        assert "aws sso login --profile my-profile" in msg
+
+
+def test_check_aws_credentials_no_credentials_without_profile() -> None:
+    """Test credential check without AWS_PROFILE and no credentials."""
+    from botocore.exceptions import NoCredentialsError
+
+    from cli.aws_preflight import check_aws_credentials
+
+    with patch.dict("os.environ", {}, clear=True), patch("boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.side_effect = NoCredentialsError()
+        mock_session.client.return_value = mock_sts
+        mock_session_class.return_value = mock_session
+
+        creds_ok, msg = check_aws_credentials()
+
+        assert creds_ok is False
+        assert "No AWS credentials found" in msg
+        assert "aws configure sso" in msg
+
+
+def test_check_aws_credentials_profile_not_found() -> None:
+    """Test credential check when AWS_PROFILE is set but profile doesn't exist."""
+    from botocore.exceptions import ProfileNotFound
+
+    from cli.aws_preflight import check_aws_credentials
+
+    with patch.dict("os.environ", {"AWS_PROFILE": "nonexistent-profile"}), patch(
+        "boto3.Session"
+    ) as mock_session_class:
+        mock_session_class.side_effect = ProfileNotFound(profile="nonexistent-profile")
+
+        creds_ok, msg = check_aws_credentials()
+
+        assert creds_ok is False
+        assert "nonexistent-profile" in msg
+        assert "profile does not exist" in msg
+        assert "aws configure sso --profile nonexistent-profile" in msg
+
+
+def test_check_aws_credentials_expired_token_with_profile() -> None:
+    """Test credential check with expired SSO token."""
+    from cli.aws_preflight import check_aws_credentials
+
+    with patch.dict("os.environ", {"AWS_PROFILE": "my-sso-profile"}), patch(
+        "boto3.Session"
+    ) as mock_session_class:
+        mock_session = MagicMock()
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.side_effect = ClientError(
+            {"Error": {"Code": "InvalidClientTokenId", "Message": "The security token is invalid"}},
+            "GetCallerIdentity",
+        )
+        mock_session.client.return_value = mock_sts
+        mock_session_class.return_value = mock_session
+
+        creds_ok, msg = check_aws_credentials()
+
+        assert creds_ok is False
+        assert "expired" in msg
+        assert "my-sso-profile" in msg
+        assert "aws sso login" in msg
+
+
+def test_check_aws_credentials_expired_token_without_profile() -> None:
+    """Test credential check with expired token but no profile set."""
+    from cli.aws_preflight import check_aws_credentials
+
+    with patch.dict("os.environ", {}, clear=True), patch("boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.side_effect = ClientError(
+            {"Error": {"Code": "InvalidClientTokenId", "Message": "The security token is invalid"}},
+            "GetCallerIdentity",
+        )
+        mock_session.client.return_value = mock_sts
+        mock_session_class.return_value = mock_session
+
+        creds_ok, msg = check_aws_credentials()
+
+        assert creds_ok is False
+        assert "expired" in msg
+        assert "export AWS_PROFILE" in msg
+
+
+def test_run_preflight_check_fails_on_invalid_credentials(capsys) -> None:
+    """Test that preflight check exits early if credentials are invalid."""
+    from botocore.exceptions import NoCredentialsError
+
+    from cli.aws_preflight import run_preflight_check
+
+    with patch.dict("os.environ", {}, clear=True), patch("boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.side_effect = NoCredentialsError()
+        mock_session.client.return_value = mock_sts
+        mock_session_class.return_value = mock_session
+
+        with pytest.raises(SystemExit) as exc_info:
+            run_preflight_check(verbose=False, write_probes=False)
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "No AWS credentials found" in captured.out

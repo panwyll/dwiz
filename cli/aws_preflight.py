@@ -5,13 +5,14 @@ This module validates that the current AWS credentials have the minimum
 permissions needed to run DWiz operations (init, up, deploy).
 """
 import json
+import os
 import random
 import string
 from dataclasses import dataclass
 from typing import Any
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 
 
 @dataclass
@@ -24,6 +25,118 @@ class ProbeResult:
     details: str
     missing_actions: list[str]
     suggested_fix: str = ""
+
+
+def check_aws_credentials() -> tuple[bool, str]:
+    """Check if AWS credentials are configured and provide helpful guidance.
+
+    This function checks if AWS credentials are available and provides
+    guidance for AWS SSO authentication if needed.
+
+    Returns:
+        Tuple of (credentials_available, message)
+        - credentials_available: True if valid credentials are found
+        - message: Helpful message about credential status
+    """
+    aws_profile = os.environ.get("AWS_PROFILE")
+
+    # Try to get caller identity to test credentials
+    try:
+        session = boto3.Session()
+        sts = session.client("sts")
+        response = sts.get_caller_identity()
+
+        # Credentials are valid
+        if aws_profile:
+            msg = f"✓ Using AWS_PROFILE='{aws_profile}'"
+        else:
+            msg = "✓ Using default AWS credentials"
+
+        # Add caller identity info
+        caller_arn = response.get("Arn", "")
+        if caller_arn:
+            msg += f" (Identity: {caller_arn})"
+
+        return True, msg
+
+    except ProfileNotFound:
+        # AWS_PROFILE is set but the profile doesn't exist
+        msg = (
+            f"✗ AWS_PROFILE is set to '{aws_profile}' but the profile does not exist.\n"
+            f"\n"
+            f"To configure this AWS SSO profile, run:\n"
+            f"  aws configure sso --profile {aws_profile}\n"
+            f"\n"
+            f"Then authenticate:\n"
+            f"  aws sso login --profile {aws_profile}"
+        )
+        return False, msg
+
+    except NoCredentialsError:
+        # No credentials found at all
+        if aws_profile:
+            msg = (
+                f"✗ AWS_PROFILE is set to '{aws_profile}' but no valid credentials found.\n"
+                f"\n"
+                f"To authenticate with AWS SSO, run:\n"
+                f"  aws sso login --profile {aws_profile}\n"
+                f"\n"
+                f"If the profile doesn't exist, configure it first:\n"
+                f"  aws configure sso --profile {aws_profile}"
+            )
+        else:
+            msg = (
+                "✗ No AWS credentials found and AWS_PROFILE is not set.\n"
+                "\n"
+                "To use AWS SSO authentication:\n"
+                "  1. Configure an AWS SSO profile:\n"
+                "     aws configure sso --profile YOUR_PROFILE_NAME\n"
+                "\n"
+                "  2. Set the profile and authenticate:\n"
+                "     export AWS_PROFILE=YOUR_PROFILE_NAME\n"
+                "     aws sso login --profile YOUR_PROFILE_NAME\n"
+                "\n"
+                "Or configure traditional credentials:\n"
+                "  aws configure"
+            )
+        return False, msg
+
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "")
+
+        # Check for expired SSO token
+        if error_code == "InvalidClientTokenId" or "token" in str(e).lower():
+            if aws_profile:
+                msg = (
+                    f"✗ AWS credentials may be expired (using AWS_PROFILE='{aws_profile}').\n"
+                    f"\n"
+                    f"To refresh your AWS SSO session, run:\n"
+                    f"  aws sso login --profile {aws_profile}"
+                )
+            else:
+                msg = (
+                    "✗ AWS credentials may be expired.\n"
+                    "\n"
+                    "If using AWS SSO, set AWS_PROFILE and login:\n"
+                    "  export AWS_PROFILE=YOUR_PROFILE_NAME\n"
+                    "  aws sso login --profile YOUR_PROFILE_NAME\n"
+                    "\n"
+                    "Or refresh your credentials using:\n"
+                    "  aws configure"
+                )
+        else:
+            # Other ClientError
+            if aws_profile:
+                msg = (
+                    f"✗ Error validating AWS credentials (using AWS_PROFILE='{aws_profile}'): {e}\n"
+                    f"\n"
+                    f"Try refreshing your credentials:\n"
+                    f"  aws sso login --profile {aws_profile}"
+                )
+            else:
+                msg = f"✗ Error validating AWS credentials: {e}"
+
+        return False, msg
 
 
 class AWSPreflight:
@@ -591,6 +704,14 @@ def run_preflight_check(verbose: bool = False, write_probes: bool = False) -> No
     if write_probes:
         print("(including write probes - will create and delete test resources)")
     print()
+
+    # Check AWS credentials first
+    creds_ok, creds_msg = check_aws_credentials()
+    print(creds_msg)
+    print()
+
+    if not creds_ok:
+        raise SystemExit(1)
 
     preflight = AWSPreflight(verbose=verbose, write_probes=write_probes)
     results = preflight.run_all_probes()

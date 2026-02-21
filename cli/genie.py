@@ -10,7 +10,7 @@ from pathlib import Path
 import boto3
 from botocore.exceptions import ClientError
 
-from cli.aws_preflight import run_preflight_check
+from cli.aws_preflight import check_aws_credentials, run_preflight_check
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TERRAFORM_ENVS = {"dev", "prod"}
@@ -350,6 +350,14 @@ def cmd_bootstrap(args: argparse.Namespace) -> None:
     region = args.region
     bucket = args.bucket
     table = args.table
+
+    # Check AWS credentials first
+    creds_ok, creds_msg = check_aws_credentials()
+    print(creds_msg)
+    print()
+
+    if not creds_ok:
+        raise SystemExit(1)
 
     # Validate resource names before attempting to create them
     validate_resource_names(bucket, table)
