@@ -158,6 +158,21 @@ def test_validate_resource_names_provides_suggestion_with_account_id() -> None:
         assert "123456789012-genie-tf-lock" in error_msg
 
 
+def test_validate_resource_names_handles_all_placeholder_patterns() -> None:
+    """Test that all placeholder patterns are replaced in suggestions."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "987654321098\n"
+    with patch("subprocess.run", return_value=mock_result):
+        # Test YOUR_ACCOUNT pattern
+        with pytest.raises(SystemExit) as exc_info:
+            validate_resource_names("YOUR_ACCOUNT-bucket", "YOUR_ACCOUNT-table")
+        error_msg = str(exc_info.value)
+        assert "987654321098-bucket" in error_msg
+        assert "987654321098-table" in error_msg
+        assert "YOUR_ACCOUNT" not in error_msg.split("Suggested command")[1]
+
+
 def test_validate_resource_names_provides_help_without_account_id() -> None:
     mock_result = MagicMock()
     mock_result.returncode = 1

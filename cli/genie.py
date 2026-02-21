@@ -83,12 +83,12 @@ def validate_resource_names(bucket: str, table: str) -> None:
         if account_id:
             error_parts.append(f"Your AWS Account ID: {account_id}")
             error_parts.append("")
-            suggested_bucket = bucket.replace("YOUR_ORG", account_id).replace(
-                "YOUR-ORG", account_id
-            )
-            suggested_table = table.replace("YOUR_ORG", account_id).replace(
-                "YOUR-ORG", account_id
-            )
+            # Replace all placeholder patterns with account ID
+            suggested_bucket = bucket
+            suggested_table = table
+            for pattern in placeholder_patterns:
+                suggested_bucket = suggested_bucket.replace(pattern, account_id)
+                suggested_table = suggested_table.replace(pattern, account_id)
             error_parts.append("Suggested command with your account ID:")
             error_parts.append(
                 f"  genie bootstrap --bucket {suggested_bucket} --table {suggested_table}"
@@ -109,7 +109,7 @@ def validate_resource_names(bucket: str, table: str) -> None:
             f"Error: S3 bucket name must be between 3 and 63 characters. Got: {bucket}"
         )
 
-    if not all(c.islower() or c.isdigit() or c in ["-", "."] for c in bucket):
+    if not all(c.islower() or c.isdigit() or c in "-." for c in bucket):
         raise SystemExit(
             f"Error: S3 bucket name can only contain lowercase letters, numbers, "
             f"hyphens, and periods.\nGot: {bucket}"
