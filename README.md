@@ -19,13 +19,15 @@ This installs the `wizard` CLI so you can run `wizard <command>` from anywhere i
 
 ## Bootstrap remote state
 
-Create the S3 bucket and DynamoDB table for Terraform state with a single command (one-time):
+The Terraform S3 backend and DynamoDB lock table are **automatically created** when you run `wizard up` or `make tf-init`. The backend configuration is read from `terraform/envs/{env}/backend.tf`.
+
+If you prefer to bootstrap manually (e.g., to use a custom bucket name), run:
 
 ```bash
 wizard bootstrap --bucket YOUR_ORG-wizard-tf-state --table YOUR_ORG-wizard-tf-lock
 ```
 
-Then update `terraform/envs/dev/backend.tf` and `terraform/envs/prod/backend.tf` with the printed values.
+Then update `terraform/envs/dev/backend.tf` and `terraform/envs/prod/backend.tf` with your custom values.
 
 ## GitHub Actions OIDC roles
 

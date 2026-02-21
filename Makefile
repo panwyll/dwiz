@@ -19,6 +19,7 @@ dag-validate:
 	$(PYTHON) scripts/policy_check.py
 
 tf-init:
+	./scripts/ensure_backend.sh $(ENV)
 	terraform -chdir=terraform/envs/$(ENV) init
 
 tf-plan:
