@@ -5,6 +5,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from cli.aws_preflight import run_preflight_check
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TERRAFORM_ENVS = {"dev", "prod"}
 
@@ -215,8 +217,10 @@ def cmd_bootstrap(args: argparse.Namespace) -> None:
     print(f"  region         = \"{region}\"")
 
 
-def cmd_init(_: argparse.Namespace) -> None:
+def cmd_init(args: argparse.Namespace) -> None:
     require_tools("terraform", "aws")
+    # Run preflight check
+    run_preflight_check(verbose=args.verbose, write_probes=args.preflight_write)
     print("Initialized. Ensure terraform backend config is updated.")
 
 
@@ -224,6 +228,8 @@ def cmd_up(args: argparse.Namespace) -> None:
     require_tools("terraform")
     if args.env not in TERRAFORM_ENVS:
         raise SystemExit("env must be dev or prod")
+    # Run preflight check
+    run_preflight_check(verbose=args.verbose, write_probes=args.preflight_write)
     run_make("tf-init", args.env)
     run_make("tf-plan", args.env)
     run_make("tf-apply", args.env)
@@ -233,6 +239,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     require_tools("aws")
     if args.env not in TERRAFORM_ENVS:
         raise SystemExit("env must be dev or prod")
+    # Run preflight check
+    run_preflight_check(verbose=args.verbose, write_probes=args.preflight_write)
     run_make("deploy", args.env)
 
 
@@ -278,14 +286,38 @@ def build_parser() -> argparse.ArgumentParser:
     bootstrap_parser.set_defaults(func=cmd_bootstrap)
 
     init_parser = sub.add_parser("init", help="Verify prerequisites")
+    init_parser.add_argument(
+        "--verbose", action="store_true", help="Print detailed output including account info"
+    )
+    init_parser.add_argument(
+        "--preflight-write",
+        action="store_true",
+        help="Run write probes (create/delete test resources)",
+    )
     init_parser.set_defaults(func=cmd_init)
 
     up_parser = sub.add_parser("up", help="Provision infra")
     up_parser.add_argument("env")
+    up_parser.add_argument(
+        "--verbose", action="store_true", help="Print detailed output including account info"
+    )
+    up_parser.add_argument(
+        "--preflight-write",
+        action="store_true",
+        help="Run write probes (create/delete test resources)",
+    )
     up_parser.set_defaults(func=cmd_up)
 
     deploy_parser = sub.add_parser("deploy", help="Deploy DAGs")
     deploy_parser.add_argument("env")
+    deploy_parser.add_argument(
+        "--verbose", action="store_true", help="Print detailed output including account info"
+    )
+    deploy_parser.add_argument(
+        "--preflight-write",
+        action="store_true",
+        help="Run write probes (create/delete test resources)",
+    )
     deploy_parser.set_defaults(func=cmd_deploy)
 
     new_source = sub.add_parser("new-source", help="Create source scaffold")
