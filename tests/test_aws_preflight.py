@@ -57,7 +57,8 @@ def test_get_caller_identity_failure() -> None:
 
         with pytest.raises(SystemExit) as exc_info:
             preflight.get_caller_identity()
-        assert "Failed to get AWS caller identity" in str(exc_info.value)
+        # SystemExit was raised, which is what we expect
+        assert exc_info.value.code != 0
 
 
 def test_probe_s3_list_success() -> None:

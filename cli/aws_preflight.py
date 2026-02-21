@@ -68,6 +68,14 @@ class AWSPreflight:
                 "Ensure AWS credentials are configured."
             ) from e
 
+    def _generate_test_suffix(self) -> str:
+        """Generate a random suffix for test resource names.
+
+        Returns:
+            Random 8-character string of lowercase letters and digits
+        """
+        return "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
+
     def probe_s3_list(self) -> ProbeResult:
         """Probe S3 ListAllMyBuckets permission."""
         try:
@@ -103,7 +111,7 @@ class AWSPreflight:
             )
 
         # Generate a random bucket name
-        rand_suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        rand_suffix = self._generate_test_suffix()
         bucket_name = f"{self.account_id}-dwiz-perm-test-{rand_suffix}"
 
         try:
@@ -119,16 +127,19 @@ class AWSPreflight:
                 )
 
             # Clean up immediately
+            cleanup_details = ""
             try:
                 s3.delete_bucket(Bucket=bucket_name)
-            except ClientError:
-                pass  # Best effort cleanup
+            except ClientError as cleanup_error:
+                cleanup_details = f" (Warning: cleanup failed: {cleanup_error})"
+                if self.verbose:
+                    print(f"Warning: Failed to delete test bucket {bucket_name}: {cleanup_error}")
 
             return ProbeResult(
                 service="S3",
                 action="CreateBucket/DeleteBucket",
                 ok=True,
-                details="Can create and delete S3 buckets",
+                details=f"Can create and delete S3 buckets{cleanup_details}",
                 missing_actions=[],
             )
         except ClientError as e:
@@ -167,7 +178,7 @@ class AWSPreflight:
 
     def probe_dynamodb_write(self) -> ProbeResult:
         """Probe DynamoDB CreateTable/DeleteTable permissions (optional write test)."""
-        rand_suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        rand_suffix = self._generate_test_suffix()
         table_name = f"dwiz-perm-test-{rand_suffix}"
 
         try:
@@ -181,16 +192,21 @@ class AWSPreflight:
             )
 
             # Wait briefly and clean up
+            cleanup_details = ""
             try:
                 dynamodb.delete_table(TableName=table_name)
-            except ClientError:
-                pass  # Best effort cleanup
+            except ClientError as cleanup_error:
+                cleanup_details = f" (Warning: cleanup failed: {cleanup_error})"
+                if self.verbose:
+                    print(
+                        f"Warning: Failed to delete test table {table_name}: {cleanup_error}"
+                    )
 
             return ProbeResult(
                 service="DynamoDB",
                 action="CreateTable/DeleteTable",
                 ok=True,
-                details="Can create and delete DynamoDB tables",
+                details=f"Can create and delete DynamoDB tables{cleanup_details}",
                 missing_actions=[],
             )
         except ClientError as e:
