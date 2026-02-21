@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import boto3
@@ -14,6 +15,7 @@ from cli.aws_preflight import check_aws_credentials, run_preflight_check
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TERRAFORM_ENVS = {"dev", "prod"}
+NEGLIGIBLE_COST_THRESHOLD = 0.01  # Filter out costs below 1 cent
 
 
 def run(cmd: list[str], cwd: Path | None = None) -> None:
@@ -513,6 +515,135 @@ def cmd_add_stream(args: argparse.Namespace) -> None:
     print(f"Created {path}")
 
 
+def get_date_range(period: str) -> tuple[str, str]:
+    """Get start and end dates for the specified billing period.
+
+    Args:
+        period: One of 'day', 'month', 'year', or 'all'
+
+    Returns:
+        Tuple of (start_date, end_date) in YYYY-MM-DD format
+    """
+    today = datetime.now().date()
+    end_date = today.strftime("%Y-%m-%d")
+
+    if period == "day":
+        start_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+    elif period == "month":
+        start_date = today.replace(day=1).strftime("%Y-%m-%d")
+    elif period == "year":
+        start_date = today.replace(month=1, day=1).strftime("%Y-%m-%d")
+    elif period == "all":
+        # AWS Cost Explorer supports data from up to 12 months ago
+        start_date = (today - timedelta(days=365)).strftime("%Y-%m-%d")
+    else:
+        raise ValueError(f"Invalid period: {period}")
+
+    return start_date, end_date
+
+
+def cmd_billing(args: argparse.Namespace) -> None:
+    """Show AWS billing and usage information sorted by cost."""
+    require_tools("aws")
+
+    # Determine the time period
+    period = args.period
+
+    try:
+        # Get date range for the period
+        start_date, end_date = get_date_range(period)
+
+        # Cost Explorer API is only available in us-east-1
+        ce_client = boto3.client("ce", region_name="us-east-1")
+
+        print(f"Fetching billing data for period: {period}")
+        print(f"Date range: {start_date} to {end_date}")
+        print()
+
+        # Get cost and usage data grouped by service
+        response = ce_client.get_cost_and_usage(
+            TimePeriod={"Start": start_date, "End": end_date},
+            Granularity="MONTHLY",
+            Metrics=["UnblendedCost"],
+            GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
+        )
+
+        # Parse and aggregate costs by service
+        service_costs = {}
+        for result in response.get("ResultsByTime", []):
+            for group in result.get("Groups", []):
+                service_name = group["Keys"][0]
+                cost_amount = float(group["Metrics"]["UnblendedCost"]["Amount"])
+                if service_name in service_costs:
+                    service_costs[service_name] += cost_amount
+                else:
+                    service_costs[service_name] = cost_amount
+
+        # Sort by cost (descending)
+        sorted_services = sorted(
+            service_costs.items(), key=lambda x: x[1], reverse=True
+        )
+
+        # Display results
+        if not sorted_services:
+            print("No billing data found for the specified period.")
+            return
+
+        print("AWS Billing Summary (sorted by cost)")
+        print("=" * 80)
+        print(f"{'Service':<50} {'Cost (USD)':>15}")
+        print("-" * 80)
+
+        total_cost = 0.0
+        for service, cost in sorted_services:
+            if cost > NEGLIGIBLE_COST_THRESHOLD:
+                print(f"{service:<50} ${cost:>14.2f}")
+                total_cost += cost
+
+        print("-" * 80)
+        print(f"{'TOTAL':<50} ${total_cost:>14.2f}")
+        print("=" * 80)
+
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "")
+        error_message = e.response.get("Error", {}).get("Message", "")
+
+        if error_code in ["AccessDenied", "UnauthorizedOperation"]:
+            print()
+            print("=" * 80)
+            print("AWS PERMISSION ERROR")
+            print("=" * 80)
+            print()
+            print(f"Error: {error_message}")
+            print()
+            print("The billing command requires Cost Explorer API permissions.")
+            print()
+            print("Required IAM permissions:")
+            print('  - ce:GetCostAndUsage')
+            print()
+            print("To grant these permissions, add the following to your IAM policy:")
+            print()
+            print(json.dumps({
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": ["ce:GetCostAndUsage"],
+                        "Resource": "*"
+                    }
+                ]
+            }, indent=2))
+            print()
+            print("=" * 80)
+            raise SystemExit(1) from e
+        else:
+            print(f"AWS Error: {error_message}")
+            raise SystemExit(1) from e
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise SystemExit(1) from e
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="genie")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -574,6 +705,17 @@ def build_parser() -> argparse.ArgumentParser:
     add_stream = sub.add_parser("add-stream", help="Create stream scaffold")
     add_stream.add_argument("name")
     add_stream.set_defaults(func=cmd_add_stream)
+
+    billing_parser = sub.add_parser(
+        "billing",
+        help="Show AWS billing and usage information sorted by cost",
+    )
+    billing_parser.add_argument(
+        "period",
+        choices=["day", "month", "year", "all"],
+        help="Time period: day=yesterday, month=current month, year=YTD, all=last 12mo",
+    )
+    billing_parser.set_defaults(func=cmd_billing)
 
     return parser
 
