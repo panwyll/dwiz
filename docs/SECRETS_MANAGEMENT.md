@@ -195,6 +195,8 @@ For each environment (dev/prod):
    - `secretsmanager:DescribeSecret` on all environment secrets
    - `kms:Decrypt` using the environment KMS key
 
+**Note on Permissions Scope**: By default, the Terraform configuration grants access to all secrets under the `<project>-<env>/*` prefix using a wildcard pattern. This allows you to add new secrets without modifying Terraform. For stricter security in production, you can edit `terraform/envs/prod/main.tf` and remove the wildcard entry, keeping only specific secret ARNs.
+
 ## Caching
 
 The secrets library caches retrieved secrets in memory for the lifetime of the Python process. This:

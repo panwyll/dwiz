@@ -47,6 +47,9 @@ module "mwaa" {
   dags_bucket        = "${var.project}-dags-dev"
   private_subnet_ids = module.network.private_subnet_ids
   vpc_id             = module.network.vpc_id
+  # Grant access to predefined secrets plus any future secrets under this prefix
+  # This allows adding new secrets without Terraform changes
+  # For stricter security, remove the wildcard and only include specific secret ARNs
   secrets_arns = [
     module.secrets_manager.api_keys_secret_arn,
     module.secrets_manager.database_secret_arn,
