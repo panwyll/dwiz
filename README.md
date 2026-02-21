@@ -9,20 +9,23 @@ Data Platform Genie provides a minimal, Terraform-first AWS data platform with A
 - Python 3.11
 - AWS CLI (for local credentials) and Docker (for building job images)
 
-## Bootstrap remote state
-
-Create an S3 bucket and DynamoDB table for state locking (one-time). Example:
+## Install
 
 ```bash
-aws s3 mb s3://YOUR_ORG-genie-tf-state
-aws dynamodb create-table \
-  --table-name YOUR_ORG-genie-tf-lock \
-  --billing-mode PAY_PER_REQUEST \
-  --attribute-definitions AttributeName=LockID,AttributeType=S \
-  --key-schema AttributeName=LockID,KeyType=HASH
+make install
 ```
 
-Update `terraform/envs/dev/backend.tf` and `terraform/envs/prod/backend.tf` with your bucket and table names.
+This installs the `genie` CLI so you can run `genie <command>` from anywhere in the repo.
+
+## Bootstrap remote state
+
+Create the S3 bucket and DynamoDB table for Terraform state with a single command (one-time):
+
+```bash
+genie bootstrap --bucket YOUR_ORG-genie-tf-state --table YOUR_ORG-genie-tf-lock
+```
+
+Then update `terraform/envs/dev/backend.tf` and `terraform/envs/prod/backend.tf` with the printed values.
 
 ## GitHub Actions OIDC roles
 
@@ -36,16 +39,16 @@ The trust policy is scoped to this repo and specific ref. Policies are scoped to
 ## Deploy dev
 
 ```bash
-./cli/genie.py init
-./cli/genie.py up dev
-./cli/genie.py deploy dev
+genie init
+genie up dev
+genie deploy dev
 ```
 
 ## Promote to prod
 
 ```bash
-./cli/genie.py up prod
-./cli/genie.py deploy prod
+genie up prod
+genie deploy prod
 ```
 
 For GitHub Actions, push a tag `v*` to run the prod workflow.
@@ -54,7 +57,7 @@ For GitHub Actions, push a tag `v*` to run the prod workflow.
 
 - `dags/templates/stream_compaction.py` and `dags/templates/batch_api_ingest.py` show recommended structure.
 - Add sources in `pipelines/sources` and streams in `pipelines/streams`.
-- Use `./cli/genie.py new-source <name>` and `./cli/genie.py add-stream <name>` to scaffold files.
+- Use `genie new-source <name>` and `genie add-stream <name>` to scaffold files.
 
 All DAGs must set `owner`, `tags`, `schedule_interval`, `catchup`, and `max_active_runs`.
 
