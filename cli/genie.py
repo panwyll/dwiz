@@ -355,7 +355,7 @@ def cmd_bootstrap(args: argparse.Namespace) -> None:
     creds_ok, creds_msg = check_aws_credentials()
     print(creds_msg)
     print()
-    
+
     if not creds_ok:
         raise SystemExit(1)
 
