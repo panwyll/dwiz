@@ -302,13 +302,13 @@ def test_bootstrap_handles_s3_permission_error(capsys) -> None:
         mock_boto3.client.side_effect = lambda service, **kwargs: (
             mock_s3 if service == "s3" else mock_dynamodb
         )
-        
+
         with patch("cli.genie.get_caller_identity") as mock_identity:
             mock_identity.return_value = ("903783614598", "arn:aws:iam::903783614598:user/dwiz")
-            
+
             with pytest.raises(SystemExit):
                 cmd_bootstrap(args)
-        
+
         out = capsys.readouterr().out
         # Check for remediation output
         assert "AWS PERMISSION ERROR" in out
@@ -348,13 +348,13 @@ def test_bootstrap_handles_dynamodb_permission_error(capsys) -> None:
         mock_boto3.client.side_effect = lambda service, **kwargs: (
             mock_s3 if service == "s3" else mock_dynamodb
         )
-        
+
         with patch("cli.genie.get_caller_identity") as mock_identity:
             mock_identity.return_value = ("123456789012", "arn:aws:iam::123456789012:user/test")
-            
+
             with pytest.raises(SystemExit):
                 cmd_bootstrap(args)
-        
+
         out = capsys.readouterr().out
         # Check for remediation output
         assert "AWS PERMISSION ERROR" in out

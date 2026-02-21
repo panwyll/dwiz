@@ -57,7 +57,7 @@ def extract_identity_name(caller_arn: str | None) -> str | None:
     """Extract user or role name from caller ARN."""
     if not caller_arn:
         return None
-    
+
     # ARN format: arn:aws:iam::account-id:user/username
     # or: arn:aws:iam::account-id:role/rolename
     # or: arn:aws:sts::account-id:assumed-role/rolename/session-name
@@ -75,7 +75,7 @@ def get_identity_type(caller_arn: str | None) -> str:
     """Get the type of identity (user, role, or assumed-role)."""
     if not caller_arn:
         return "user"
-    
+
     if ":assumed-role/" in caller_arn:
         return "assumed-role"
     elif ":role/" in caller_arn:
@@ -87,26 +87,26 @@ def get_identity_type(caller_arn: str | None) -> str:
 
 def parse_aws_permission_error(error: ClientError) -> list[str]:
     """Parse AWS ClientError to extract missing permissions.
-    
+
     Args:
         error: The ClientError exception from boto3
-        
+
     Returns:
         List of missing IAM actions (e.g., ['s3:CreateBucket'])
     """
     error_code = error.response.get("Error", {}).get("Code", "")
     error_message = error.response.get("Error", {}).get("Message", "")
-    
+
     # Check if it's an access denied error
     if error_code not in ["AccessDenied", "UnauthorizedOperation"]:
         return []
-    
+
     # Try to extract the action from the error message
     # Pattern: "not authorized to perform: ACTION on resource"
     match = re.search(r"not authorized to perform: ([^\s]+)", error_message)
     if match:
         return [match.group(1)]
-    
+
     # If we can't parse the specific action, return empty list
     return []
 
@@ -117,14 +117,14 @@ def print_permission_error_remediation(
     resource_name: str = "",
 ) -> None:
     """Print remediation steps for AWS permission errors.
-    
+
     Args:
         error: The ClientError exception from boto3
         missing_actions: List of missing IAM actions
         resource_name: Optional resource name for context
     """
     error_message = error.response.get("Error", {}).get("Message", str(error))
-    
+
     print()
     print("=" * 80)
     print("AWS PERMISSION ERROR")
@@ -132,10 +132,10 @@ def print_permission_error_remediation(
     print()
     print(f"Error: {error_message}")
     print()
-    
+
     # Get caller identity
     account_id, caller_arn = get_caller_identity()
-    
+
     if not missing_actions:
         print("Unable to automatically determine the missing permissions.")
         print("Please check the error message above and grant the necessary permissions.")
@@ -144,7 +144,7 @@ def print_permission_error_remediation(
             print(f"Your AWS Identity: {caller_arn}")
         print("=" * 80)
         return
-    
+
     # Generate policy document
     policy_doc = {
         "Version": "2012-10-17",
@@ -157,25 +157,25 @@ def print_permission_error_remediation(
         ],
     }
     policy_json = json.dumps(policy_doc, indent=2)
-    
+
     print(f"Your AWS Identity: {caller_arn or 'Unknown'}")
     print()
     print("The following IAM permissions are required:")
     print()
     print(policy_json)
     print()
-    
+
     # Determine identity type and provide appropriate commands
     identity_type = get_identity_type(caller_arn)
     identity_name = extract_identity_name(caller_arn)
-    
+
     print("To grant these permissions, follow one of these options:")
     print()
     print("OPTION 1: Grant specific permissions (recommended)")
     print("-" * 80)
     print("1. Save the policy above to a file: bootstrap-policy.json")
     print()
-    
+
     if identity_type == "user" and identity_name:
         print("2. Attach the policy to your user:")
         print(
@@ -191,7 +191,7 @@ def print_permission_error_remediation(
     else:
         print("2. Attach the policy to your IAM user or role using the AWS Console")
         print("   or CLI commands appropriate for your identity type.")
-    
+
     print()
     print("OPTION 2: Use Terraform to grant permissions")
     print("-" * 80)
@@ -202,17 +202,17 @@ def print_permission_error_remediation(
         print('  name = "DWizBootstrapPermissions"')
         print(f'  user = "{identity_name}"')
         print()
-        print('  policy = jsonencode({')
+        print("  policy = jsonencode({")
         print('    Version = "2012-10-17"')
-        print('    Statement = [')
-        print('      {')
+        print("    Statement = [")
+        print("      {")
         print('        Effect   = "Allow"')
-        print(f'        Action   = {json.dumps(missing_actions)}')
+        print(f"        Action   = {json.dumps(missing_actions)}")
         print('        Resource = "*"')
-        print('      },')
-        print('    ]')
-        print('  })')
-        print('}')
+        print("      },")
+        print("    ]")
+        print("  })")
+        print("}")
     elif identity_type in ["role", "assumed-role"] and identity_name:
         print("Create a Terraform configuration file (e.g., iam-permissions.tf):")
         print()
@@ -220,21 +220,21 @@ def print_permission_error_remediation(
         print('  name = "DWizBootstrapPermissions"')
         print(f'  role = "{identity_name}"')
         print()
-        print('  policy = jsonencode({')
+        print("  policy = jsonencode({")
         print('    Version = "2012-10-17"')
-        print('    Statement = [')
-        print('      {')
+        print("    Statement = [")
+        print("      {")
         print('        Effect   = "Allow"')
-        print(f'        Action   = {json.dumps(missing_actions)}')
+        print(f"        Action   = {json.dumps(missing_actions)}")
         print('        Resource = "*"')
-        print('      },')
-        print('    ]')
-        print('  })')
-        print('}')
+        print("      },")
+        print("    ]")
+        print("  })")
+        print("}")
     else:
         print("Create a Terraform configuration with appropriate resource type")
         print("(aws_iam_user_policy or aws_iam_role_policy) for your identity.")
-    
+
     print()
     print("Then run:")
     print("  terraform init")
@@ -257,7 +257,7 @@ def print_permission_error_remediation(
         )
     else:
         print("Attach the AdministratorAccess managed policy using the AWS Console.")
-    
+
     print()
     print("=" * 80)
 
@@ -341,8 +341,7 @@ def validate_resource_names(bucket: str, table: str) -> None:
         or bucket.endswith(".")
     ):
         raise SystemExit(
-            f"Error: S3 bucket name cannot start or end with a hyphen or period.\n"
-            f"Got: {bucket}"
+            f"Error: S3 bucket name cannot start or end with a hyphen or period.\nGot: {bucket}"
         )
 
 
@@ -351,7 +350,7 @@ def cmd_bootstrap(args: argparse.Namespace) -> None:
     region = args.region
     bucket = args.bucket
     table = args.table
-    
+
     # Validate resource names before attempting to create them
     validate_resource_names(bucket, table)
 
@@ -359,7 +358,7 @@ def cmd_bootstrap(args: argparse.Namespace) -> None:
     try:
         s3_client = boto3.client("s3", region_name=region)
         dynamodb_client = boto3.client("dynamodb", region_name=region)
-        
+
         # Check if bucket exists
         bucket_exists = False
         try:
@@ -370,7 +369,7 @@ def cmd_bootstrap(args: argparse.Namespace) -> None:
             if error_code not in ["404", "NoSuchBucket"]:
                 # It's not a "bucket doesn't exist" error, so re-raise
                 raise
-        
+
         if bucket_exists:
             print(f"S3 bucket already exists, skipping creation: {bucket}")
         else:
@@ -419,7 +418,7 @@ def cmd_bootstrap(args: argparse.Namespace) -> None:
             if error_code != "ResourceNotFoundException":
                 # It's not a "table doesn't exist" error, so re-raise
                 raise
-        
+
         if table_exists:
             print(f"DynamoDB table already exists, skipping creation: {table}")
         else:
@@ -428,9 +427,7 @@ def cmd_bootstrap(args: argparse.Namespace) -> None:
                 dynamodb_client.create_table(
                     TableName=table,
                     BillingMode="PAY_PER_REQUEST",
-                    AttributeDefinitions=[
-                        {"AttributeName": "LockID", "AttributeType": "S"}
-                    ],
+                    AttributeDefinitions=[{"AttributeName": "LockID", "AttributeType": "S"}],
                     KeySchema=[{"AttributeName": "LockID", "KeyType": "HASH"}],
                 )
             except ClientError as e:
@@ -445,10 +442,10 @@ def cmd_bootstrap(args: argparse.Namespace) -> None:
 
         print()
         print("Bootstrap complete. Update backend.tf files with:")
-        print(f"  bucket         = \"{bucket}\"")
-        print(f"  dynamodb_table = \"{table}\"")
-        print(f"  region         = \"{region}\"")
-        
+        print(f'  bucket         = "{bucket}"')
+        print(f'  dynamodb_table = "{table}"')
+        print(f'  region         = "{region}"')
+
     except ClientError as e:
         # Catch any other AWS errors that weren't handled above
         error_code = e.response.get("Error", {}).get("Code", "")
@@ -504,9 +501,7 @@ def cmd_add_stream(args: argparse.Namespace) -> None:
     path = stream_dir / f"{args.name}.yaml"
     if path.exists():
         raise SystemExit("stream already exists")
-    path.write_text(
-        "name: {name}\nowner: data-eng\nsource: example\n".format(name=args.name)
-    )
+    path.write_text("name: {name}\nowner: data-eng\nsource: example\n".format(name=args.name))
     print(f"Created {path}")
 
 
