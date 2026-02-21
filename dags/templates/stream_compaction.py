@@ -5,6 +5,7 @@ from airflow.operators.python import PythonOperator
 
 from libs.python_common.logging import configure_logging
 from libs.python_common.metrics import emit_metric
+from libs.python_common.secrets import get_secret_value  # noqa: F401
 
 owner = "data-eng"
 tags = ["stream", "compaction"]
@@ -15,6 +16,12 @@ max_active_runs = 1
 
 def compact_stream() -> None:
     configure_logging()
+    
+    # Example: Retrieve streaming credentials from AWS Secrets Manager
+    # Replace 'genie-dev' with your actual secret prefix
+    # stream_creds = get_secret_value("genie-dev/streaming", "stream_api_key")
+    # Use credentials to access streaming service
+    
     emit_metric("stream_compaction_runs", 1, stream="example")
 
 

@@ -44,6 +44,22 @@ resource "aws_iam_role_policy" "mwaa" {
           aws_s3_bucket.dags.arn,
           "${aws_s3_bucket.dags.arn}/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = var.secrets_arns
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey"
+        ]
+        Resource = [var.kms_key_arn]
       }
     ]
   })

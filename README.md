@@ -61,6 +61,20 @@ For GitHub Actions, push a tag `v*` to run the prod workflow.
 
 All DAGs must set `owner`, `tags`, `schedule_interval`, `catchup`, and `max_active_runs`.
 
+## Secrets Management
+
+Secure storage of API keys, database credentials, and other secrets via AWS Secrets Manager:
+
+- Automatically provisioned KMS keys and secret storage per environment
+- Python library at `libs/python_common/secrets.py` for easy retrieval
+- See `docs/SECRETS_MANAGEMENT.md` for complete usage guide
+
+```python
+from libs.python_common.secrets import get_secret_value
+
+api_key = get_secret_value("genie-dev/api-keys", "external_api")
+```
+
 ## Monitoring
 
 - MWAA logs and metrics are sent to CloudWatch.
