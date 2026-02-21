@@ -31,12 +31,19 @@ Then update `terraform/envs/dev/backend.tf` and `terraform/envs/prod/backend.tf`
 
 ## GitHub Actions OIDC roles
 
-The `terraform/modules/iam` module creates two roles. Provide `account_id` in env vars or `terraform.tfvars`.
+The `terraform/modules/iam` module creates two roles. The wizard automatically detects your AWS account ID from your credentials and creates/updates `terraform/envs/{env}/terraform.tfvars` with the required configuration.
 
 - `github-deploy-dev` trusts `refs/heads/main`
 - `github-deploy-prod` trusts `refs/tags/v*`
 
 The trust policy is scoped to this repo and specific ref. Policies are scoped to environment resources via tags.
+
+**Note:** The wizard will automatically:
+- Detect your AWS account ID from your credentials
+- Store it for future use in `.wizard/account_id`
+- Create/update `terraform.tfvars` with the account ID and other required variables
+
+If you need to manually configure variables, edit `terraform/envs/{env}/terraform.tfvars`.
 
 ## Deploy dev
 
