@@ -616,6 +616,25 @@ def test_check_aws_credentials_no_credentials_without_profile() -> None:
         assert "aws configure sso" in msg
 
 
+def test_check_aws_credentials_profile_not_found() -> None:
+    """Test credential check when AWS_PROFILE is set but profile doesn't exist."""
+    from botocore.exceptions import ProfileNotFound
+
+    from cli.aws_preflight import check_aws_credentials
+
+    with patch.dict("os.environ", {"AWS_PROFILE": "nonexistent-profile"}), patch(
+        "boto3.Session"
+    ) as mock_session_class:
+        mock_session_class.side_effect = ProfileNotFound(profile="nonexistent-profile")
+
+        creds_ok, msg = check_aws_credentials()
+
+        assert creds_ok is False
+        assert "nonexistent-profile" in msg
+        assert "profile does not exist" in msg
+        assert "aws configure sso --profile nonexistent-profile" in msg
+
+
 def test_check_aws_credentials_expired_token_with_profile() -> None:
     """Test credential check with expired SSO token."""
     from cli.aws_preflight import check_aws_credentials

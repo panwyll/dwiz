@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import boto3
-from botocore.exceptions import ClientError, NoCredentialsError
+from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 
 
 @dataclass
@@ -59,6 +59,19 @@ def check_aws_credentials() -> tuple[bool, str]:
 
         return True, msg
 
+    except ProfileNotFound:
+        # AWS_PROFILE is set but the profile doesn't exist
+        msg = (
+            f"✗ AWS_PROFILE is set to '{aws_profile}' but the profile does not exist.\n"
+            f"\n"
+            f"To configure this AWS SSO profile, run:\n"
+            f"  aws configure sso --profile {aws_profile}\n"
+            f"\n"
+            f"Then authenticate:\n"
+            f"  aws sso login --profile {aws_profile}"
+        )
+        return False, msg
+
     except NoCredentialsError:
         # No credentials found at all
         if aws_profile:
@@ -73,18 +86,18 @@ def check_aws_credentials() -> tuple[bool, str]:
             )
         else:
             msg = (
-                f"✗ No AWS credentials found and AWS_PROFILE is not set.\n"
-                f"\n"
-                f"To use AWS SSO authentication:\n"
-                f"  1. Configure an AWS SSO profile:\n"
-                f"     aws configure sso --profile YOUR_PROFILE_NAME\n"
-                f"\n"
-                f"  2. Set the profile and authenticate:\n"
-                f"     export AWS_PROFILE=YOUR_PROFILE_NAME\n"
-                f"     aws sso login --profile YOUR_PROFILE_NAME\n"
-                f"\n"
-                f"Or configure traditional credentials:\n"
-                f"  aws configure"
+                "✗ No AWS credentials found and AWS_PROFILE is not set.\n"
+                "\n"
+                "To use AWS SSO authentication:\n"
+                "  1. Configure an AWS SSO profile:\n"
+                "     aws configure sso --profile YOUR_PROFILE_NAME\n"
+                "\n"
+                "  2. Set the profile and authenticate:\n"
+                "     export AWS_PROFILE=YOUR_PROFILE_NAME\n"
+                "     aws sso login --profile YOUR_PROFILE_NAME\n"
+                "\n"
+                "Or configure traditional credentials:\n"
+                "  aws configure"
             )
         return False, msg
 
@@ -102,14 +115,14 @@ def check_aws_credentials() -> tuple[bool, str]:
                 )
             else:
                 msg = (
-                    f"✗ AWS credentials may be expired.\n"
-                    f"\n"
-                    f"If using AWS SSO, set AWS_PROFILE and login:\n"
-                    f"  export AWS_PROFILE=YOUR_PROFILE_NAME\n"
-                    f"  aws sso login --profile YOUR_PROFILE_NAME\n"
-                    f"\n"
-                    f"Or refresh your credentials using:\n"
-                    f"  aws configure"
+                    "✗ AWS credentials may be expired.\n"
+                    "\n"
+                    "If using AWS SSO, set AWS_PROFILE and login:\n"
+                    "  export AWS_PROFILE=YOUR_PROFILE_NAME\n"
+                    "  aws sso login --profile YOUR_PROFILE_NAME\n"
+                    "\n"
+                    "Or refresh your credentials using:\n"
+                    "  aws configure"
                 )
         else:
             # Other ClientError
