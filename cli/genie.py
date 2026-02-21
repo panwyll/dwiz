@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
+
+import boto3
+from botocore.exceptions import ClientError
 
 from cli.aws_preflight import run_preflight_check
 
@@ -32,17 +37,229 @@ def run_make(target: str, env: str | None = None) -> None:
         raise SystemExit(result.returncode)
 
 
+def get_caller_identity() -> tuple[str | None, str | None]:
+    """Get AWS account ID and caller ARN."""
+    try:
+        sts = boto3.client("sts")
+        response = sts.get_caller_identity()
+        return response.get("Account"), response.get("Arn")
+    except ClientError:
+        return None, None
+
+
 def get_aws_account_id() -> str | None:
     """Try to get AWS account ID from current credentials."""
-    result = subprocess.run(
-        ["aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0:
-        return result.stdout.strip()
+    account_id, _ = get_caller_identity()
+    return account_id
+
+
+def extract_identity_name(caller_arn: str | None) -> str | None:
+    """Extract user or role name from caller ARN."""
+    if not caller_arn:
+        return None
+    
+    # ARN format: arn:aws:iam::account-id:user/username
+    # or: arn:aws:iam::account-id:role/rolename
+    # or: arn:aws:sts::account-id:assumed-role/rolename/session-name
+    parts = caller_arn.split(":")
+    if len(parts) >= 6:
+        resource = parts[5]
+        if "/" in resource:
+            resource_parts = resource.split("/")
+            if len(resource_parts) >= 2:
+                return resource_parts[1]
     return None
+
+
+def get_identity_type(caller_arn: str | None) -> str:
+    """Get the type of identity (user, role, or assumed-role)."""
+    if not caller_arn:
+        return "user"
+    
+    if ":assumed-role/" in caller_arn:
+        return "assumed-role"
+    elif ":role/" in caller_arn:
+        return "role"
+    elif ":user/" in caller_arn:
+        return "user"
+    return "user"
+
+
+def parse_aws_permission_error(error: ClientError) -> list[str]:
+    """Parse AWS ClientError to extract missing permissions.
+    
+    Args:
+        error: The ClientError exception from boto3
+        
+    Returns:
+        List of missing IAM actions (e.g., ['s3:CreateBucket'])
+    """
+    error_code = error.response.get("Error", {}).get("Code", "")
+    error_message = error.response.get("Error", {}).get("Message", "")
+    
+    # Check if it's an access denied error
+    if error_code not in ["AccessDenied", "UnauthorizedOperation"]:
+        return []
+    
+    # Try to extract the action from the error message
+    # Pattern: "not authorized to perform: ACTION on resource"
+    match = re.search(r"not authorized to perform: ([^\s]+)", error_message)
+    if match:
+        return [match.group(1)]
+    
+    # If we can't parse the specific action, return empty list
+    return []
+
+
+def print_permission_error_remediation(
+    error: ClientError,
+    missing_actions: list[str],
+    resource_name: str = "",
+) -> None:
+    """Print remediation steps for AWS permission errors.
+    
+    Args:
+        error: The ClientError exception from boto3
+        missing_actions: List of missing IAM actions
+        resource_name: Optional resource name for context
+    """
+    error_message = error.response.get("Error", {}).get("Message", str(error))
+    
+    print()
+    print("=" * 80)
+    print("AWS PERMISSION ERROR")
+    print("=" * 80)
+    print()
+    print(f"Error: {error_message}")
+    print()
+    
+    # Get caller identity
+    account_id, caller_arn = get_caller_identity()
+    
+    if not missing_actions:
+        print("Unable to automatically determine the missing permissions.")
+        print("Please check the error message above and grant the necessary permissions.")
+        print()
+        if caller_arn:
+            print(f"Your AWS Identity: {caller_arn}")
+        print("=" * 80)
+        return
+    
+    # Generate policy document
+    policy_doc = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": missing_actions,
+                "Resource": "*",
+            }
+        ],
+    }
+    policy_json = json.dumps(policy_doc, indent=2)
+    
+    print(f"Your AWS Identity: {caller_arn or 'Unknown'}")
+    print()
+    print("The following IAM permissions are required:")
+    print()
+    print(policy_json)
+    print()
+    
+    # Determine identity type and provide appropriate commands
+    identity_type = get_identity_type(caller_arn)
+    identity_name = extract_identity_name(caller_arn)
+    
+    print("To grant these permissions, follow one of these options:")
+    print()
+    print("OPTION 1: Grant specific permissions (recommended)")
+    print("-" * 80)
+    print("1. Save the policy above to a file: bootstrap-policy.json")
+    print()
+    
+    if identity_type == "user" and identity_name:
+        print("2. Attach the policy to your user:")
+        print(
+            f"   aws iam put-user-policy --user-name {identity_name} "
+            "--policy-name DWizBootstrapPermissions --policy-document file://bootstrap-policy.json"
+        )
+    elif identity_type in ["role", "assumed-role"] and identity_name:
+        print("2. Attach the policy to your role:")
+        print(
+            f"   aws iam put-role-policy --role-name {identity_name} "
+            "--policy-name DWizBootstrapPermissions --policy-document file://bootstrap-policy.json"
+        )
+    else:
+        print("2. Attach the policy to your IAM user or role using the AWS Console")
+        print("   or CLI commands appropriate for your identity type.")
+    
+    print()
+    print("OPTION 2: Use Terraform to grant permissions")
+    print("-" * 80)
+    if identity_type == "user" and identity_name:
+        print("Create a Terraform configuration file (e.g., iam-permissions.tf):")
+        print()
+        print(f'resource "aws_iam_user_policy" "dwiz_bootstrap" {{')
+        print(f'  name = "DWizBootstrapPermissions"')
+        print(f'  user = "{identity_name}"')
+        print()
+        print('  policy = jsonencode({')
+        print('    Version = "2012-10-17"')
+        print('    Statement = [')
+        print('      {')
+        print('        Effect   = "Allow"')
+        print(f'        Action   = {json.dumps(missing_actions)}')
+        print('        Resource = "*"')
+        print('      },')
+        print('    ]')
+        print('  })')
+        print('}')
+    elif identity_type in ["role", "assumed-role"] and identity_name:
+        print("Create a Terraform configuration file (e.g., iam-permissions.tf):")
+        print()
+        print(f'resource "aws_iam_role_policy" "dwiz_bootstrap" {{')
+        print(f'  name = "DWizBootstrapPermissions"')
+        print(f'  role = "{identity_name}"')
+        print()
+        print('  policy = jsonencode({')
+        print('    Version = "2012-10-17"')
+        print('    Statement = [')
+        print('      {')
+        print('        Effect   = "Allow"')
+        print(f'        Action   = {json.dumps(missing_actions)}')
+        print('        Resource = "*"')
+        print('      },')
+        print('    ]')
+        print('  })')
+        print('}')
+    else:
+        print("Create a Terraform configuration with appropriate resource type")
+        print("(aws_iam_user_policy or aws_iam_role_policy) for your identity.")
+    
+    print()
+    print("Then run:")
+    print("  terraform init")
+    print("  terraform plan")
+    print("  terraform apply")
+    print()
+    print("OPTION 3: Grant full admin access (not recommended for production)")
+    print("-" * 80)
+    if identity_type == "user" and identity_name:
+        print("Attach AdministratorAccess policy to your user:")
+        print(
+            f"   aws iam attach-user-policy --user-name {identity_name} "
+            "--policy-arn arn:aws:iam::aws:policy/AdministratorAccess"
+        )
+    elif identity_type in ["role", "assumed-role"] and identity_name:
+        print("Attach AdministratorAccess policy to your role:")
+        print(
+            f"   aws iam attach-role-policy --role-name {identity_name} "
+            "--policy-arn arn:aws:iam::aws:policy/AdministratorAccess"
+        )
+    else:
+        print("Attach the AdministratorAccess managed policy using the AWS Console.")
+    
+    print()
+    print("=" * 80)
 
 
 def validate_resource_names(bucket: str, table: str) -> None:
@@ -138,83 +355,110 @@ def cmd_bootstrap(args: argparse.Namespace) -> None:
     # Validate resource names before attempting to create them
     validate_resource_names(bucket, table)
 
-    bucket_exists = (
-        subprocess.run(
-            ["aws", "s3api", "head-bucket", "--bucket", bucket, "--region", region],
-            check=False,
-            capture_output=True,
-        ).returncode
-        == 0
-    )
-    if bucket_exists:
-        print(f"S3 bucket already exists, skipping creation: {bucket}")
-    else:
-        print(f"Creating S3 state bucket: {bucket}")
-        if region == "us-east-1":
-            run(["aws", "s3", "mb", f"s3://{bucket}", "--region", region])
+    # Use boto3 for better error handling
+    try:
+        s3_client = boto3.client("s3", region_name=region)
+        dynamodb_client = boto3.client("dynamodb", region_name=region)
+        
+        # Check if bucket exists
+        bucket_exists = False
+        try:
+            s3_client.head_bucket(Bucket=bucket)
+            bucket_exists = True
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code not in ["404", "NoSuchBucket"]:
+                # It's not a "bucket doesn't exist" error, so re-raise
+                raise
+        
+        if bucket_exists:
+            print(f"S3 bucket already exists, skipping creation: {bucket}")
         else:
-            run(
-                [
-                    "aws",
-                    "s3api",
-                    "create-bucket",
-                    "--bucket",
-                    bucket,
-                    "--region",
-                    region,
-                    "--create-bucket-configuration",
-                    f"LocationConstraint={region}",
-                ]
+            print(f"Creating S3 state bucket: {bucket}")
+            try:
+                if region == "us-east-1":
+                    s3_client.create_bucket(Bucket=bucket)
+                else:
+                    s3_client.create_bucket(
+                        Bucket=bucket,
+                        CreateBucketConfiguration={"LocationConstraint": region},
+                    )
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                if error_code in ["AccessDenied", "UnauthorizedOperation"]:
+                    missing_actions = parse_aws_permission_error(e)
+                    if not missing_actions:
+                        missing_actions = ["s3:CreateBucket"]
+                    print_permission_error_remediation(e, missing_actions, bucket)
+                    raise SystemExit(1) from e
+                raise
+
+        print(f"Enabling versioning on bucket: {bucket}")
+        try:
+            s3_client.put_bucket_versioning(
+                Bucket=bucket,
+                VersioningConfiguration={"Status": "Enabled"},
             )
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code in ["AccessDenied", "UnauthorizedOperation"]:
+                missing_actions = parse_aws_permission_error(e)
+                if not missing_actions:
+                    missing_actions = ["s3:PutBucketVersioning"]
+                print_permission_error_remediation(e, missing_actions, bucket)
+                raise SystemExit(1) from e
+            raise
 
-    print(f"Enabling versioning on bucket: {bucket}")
-    run(
-        [
-            "aws",
-            "s3api",
-            "put-bucket-versioning",
-            "--bucket",
-            bucket,
-            "--versioning-configuration",
-            "Status=Enabled",
-        ]
-    )
+        # Check if DynamoDB table exists
+        table_exists = False
+        try:
+            dynamodb_client.describe_table(TableName=table)
+            table_exists = True
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code != "ResourceNotFoundException":
+                # It's not a "table doesn't exist" error, so re-raise
+                raise
+        
+        if table_exists:
+            print(f"DynamoDB table already exists, skipping creation: {table}")
+        else:
+            print(f"Creating DynamoDB lock table: {table}")
+            try:
+                dynamodb_client.create_table(
+                    TableName=table,
+                    BillingMode="PAY_PER_REQUEST",
+                    AttributeDefinitions=[
+                        {"AttributeName": "LockID", "AttributeType": "S"}
+                    ],
+                    KeySchema=[{"AttributeName": "LockID", "KeyType": "HASH"}],
+                )
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                if error_code in ["AccessDenied", "UnauthorizedOperation"]:
+                    missing_actions = parse_aws_permission_error(e)
+                    if not missing_actions:
+                        missing_actions = ["dynamodb:CreateTable"]
+                    print_permission_error_remediation(e, missing_actions, table)
+                    raise SystemExit(1) from e
+                raise
 
-    table_exists = (
-        subprocess.run(
-            ["aws", "dynamodb", "describe-table", "--table-name", table, "--region", region],
-            check=False,
-            capture_output=True,
-        ).returncode
-        == 0
-    )
-    if table_exists:
-        print(f"DynamoDB table already exists, skipping creation: {table}")
-    else:
-        print(f"Creating DynamoDB lock table: {table}")
-        run(
-            [
-                "aws",
-                "dynamodb",
-                "create-table",
-                "--table-name",
-                table,
-                "--billing-mode",
-                "PAY_PER_REQUEST",
-                "--attribute-definitions",
-                "AttributeName=LockID,AttributeType=S",
-                "--key-schema",
-                "AttributeName=LockID,KeyType=HASH",
-                "--region",
-                region,
-            ]
-        )
-
-    print()
-    print("Bootstrap complete. Update backend.tf files with:")
-    print(f"  bucket         = \"{bucket}\"")
-    print(f"  dynamodb_table = \"{table}\"")
-    print(f"  region         = \"{region}\"")
+        print()
+        print("Bootstrap complete. Update backend.tf files with:")
+        print(f"  bucket         = \"{bucket}\"")
+        print(f"  dynamodb_table = \"{table}\"")
+        print(f"  region         = \"{region}\"")
+        
+    except ClientError as e:
+        # Catch any other AWS errors that weren't handled above
+        error_code = e.response.get("Error", {}).get("Code", "")
+        error_message = e.response.get("Error", {}).get("Message", "")
+        if error_code in ["AccessDenied", "UnauthorizedOperation"]:
+            missing_actions = parse_aws_permission_error(e)
+            print_permission_error_remediation(e, missing_actions)
+        else:
+            print(f"AWS Error: {error_message}")
+        raise SystemExit(1) from e
 
 
 def cmd_init(args: argparse.Namespace) -> None:
