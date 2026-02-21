@@ -170,9 +170,12 @@ def ensure_terraform_vars(env: str) -> None:
     oidc_provider_arn = (
         f"arn:aws:iam::{account_id}:oidc-provider/token.actions.githubusercontent.com"
     )
-    repo = "panwyll/dwiz"  # Default, users can override
+    # Default repo value - users should update this in terraform.tfvars if different
+    repo = "panwyll/dwiz"
     
     # Read existing tfvars if it exists
+    # Note: This is a simple parser that handles key = "value" format
+    # It preserves existing values but won't handle complex HCL syntax
     existing_vars = {}
     if tfvars_file.exists():
         content = tfvars_file.read_text()
@@ -182,6 +185,7 @@ def ensure_terraform_vars(env: str) -> None:
             if line and not line.startswith("#") and "=" in line:
                 key, _, value = line.partition("=")
                 key = key.strip()
+                # Remove quotes and whitespace from value
                 value = value.strip().strip('"').strip("'")
                 existing_vars[key] = value
     
