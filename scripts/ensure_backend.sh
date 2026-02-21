@@ -43,18 +43,28 @@ echo ""
 
 # Check if bucket exists
 bucket_exists=false
+bucket_check_error=""
 if aws s3api head-bucket --bucket "${BUCKET}" --region "${REGION}" 2>/dev/null; then
   bucket_exists=true
 else
   # head-bucket returns non-zero for both 404 (not exists) and 403 (forbidden)
   # Try to list objects to distinguish between the two
-  if aws s3 ls "s3://${BUCKET}" --region "${REGION}" 2>/dev/null > /dev/null; then
+  if ls_output=$(aws s3 ls "s3://${BUCKET}" --region "${REGION}" 2>&1); then
     bucket_exists=true
+  else
+    # Check if it's an access denied error
+    if echo "${ls_output}" | grep -q "AccessDenied\|Forbidden"; then
+      bucket_check_error="access_denied"
+    fi
   fi
 fi
 
 if ${bucket_exists}; then
   echo "✓ S3 bucket exists: ${BUCKET}"
+elif [[ "${bucket_check_error}" == "access_denied" ]]; then
+  echo "Error: S3 bucket '${BUCKET}' exists but you don't have access to it."
+  echo "Please ensure you have the necessary permissions or use a different bucket name."
+  exit 1
 else
   echo "Creating S3 bucket: ${BUCKET}"
   if [[ "${REGION}" == "us-east-1" ]]; then
@@ -92,6 +102,8 @@ if aws dynamodb describe-table --table-name "${TABLE}" --region "${REGION}" &>/d
   echo "✓ DynamoDB table exists: ${TABLE}"
 else
   echo "Creating DynamoDB table: ${TABLE}"
+  # Note: SSEType=KMS uses AWS-managed key (alias/aws/dynamodb) by default
+  # For customer-managed keys, add: --sse-specification Enabled=true,SSEType=KMS,KMSMasterKeyId=<key-id>
   aws dynamodb create-table \
     --table-name "${TABLE}" \
     --region "${REGION}" \
