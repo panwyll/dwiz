@@ -130,18 +130,12 @@ def get_github_repo_from_remote() -> str | None:
         # Parse GitHub URL (supports both HTTPS and SSH formats)
         # HTTPS: https://github.com/owner/repo.git
         # SSH: git@github.com:owner/repo.git
-        import re
-        
-        # Match GitHub URLs
-        patterns = [
-            r"github\.com[:/]([^/]+)/([^/\s]+?)(?:\.git)?$",  # Matches both HTTPS and SSH
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, remote_url)
-            if match:
-                owner, repo = match.groups()
-                return f"{owner}/{repo}"
+        # Pattern matches both formats and handles optional .git extension
+        pattern = r"github\.com[:/]([^/]+)/([^/\s]+?)(?:\.git)?$"
+        match = re.search(pattern, remote_url)
+        if match:
+            owner, repo = match.groups()
+            return f"{owner}/{repo}"
         
         return None
     except Exception:
