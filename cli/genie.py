@@ -30,6 +30,91 @@ def run_make(target: str, env: str | None = None) -> None:
         raise SystemExit(result.returncode)
 
 
+def cmd_bootstrap(args: argparse.Namespace) -> None:
+    require_tools("aws")
+    region = args.region
+    bucket = args.bucket
+    table = args.table
+
+    bucket_exists = (
+        subprocess.run(
+            ["aws", "s3api", "head-bucket", "--bucket", bucket, "--region", region],
+            check=False,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+    if bucket_exists:
+        print(f"S3 bucket already exists, skipping creation: {bucket}")
+    else:
+        print(f"Creating S3 state bucket: {bucket}")
+        if region == "us-east-1":
+            run(["aws", "s3", "mb", f"s3://{bucket}", "--region", region])
+        else:
+            run(
+                [
+                    "aws",
+                    "s3api",
+                    "create-bucket",
+                    "--bucket",
+                    bucket,
+                    "--region",
+                    region,
+                    "--create-bucket-configuration",
+                    f"LocationConstraint={region}",
+                ]
+            )
+
+    print(f"Enabling versioning on bucket: {bucket}")
+    run(
+        [
+            "aws",
+            "s3api",
+            "put-bucket-versioning",
+            "--bucket",
+            bucket,
+            "--versioning-configuration",
+            "Status=Enabled",
+        ]
+    )
+
+    table_exists = (
+        subprocess.run(
+            ["aws", "dynamodb", "describe-table", "--table-name", table, "--region", region],
+            check=False,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+    if table_exists:
+        print(f"DynamoDB table already exists, skipping creation: {table}")
+    else:
+        print(f"Creating DynamoDB lock table: {table}")
+        run(
+            [
+                "aws",
+                "dynamodb",
+                "create-table",
+                "--table-name",
+                table,
+                "--billing-mode",
+                "PAY_PER_REQUEST",
+                "--attribute-definitions",
+                "AttributeName=LockID,AttributeType=S",
+                "--key-schema",
+                "AttributeName=LockID,KeyType=HASH",
+                "--region",
+                region,
+            ]
+        )
+
+    print()
+    print("Bootstrap complete. Update backend.tf files with:")
+    print(f"  bucket         = \"{bucket}\"")
+    print(f"  dynamodb_table = \"{table}\"")
+    print(f"  region         = \"{region}\"")
+
+
 def cmd_init(_: argparse.Namespace) -> None:
     require_tools("terraform", "aws")
     print("Initialized. Ensure terraform backend config is updated.")
@@ -76,6 +161,21 @@ def cmd_add_stream(args: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="genie")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    bootstrap_parser = sub.add_parser(
+        "bootstrap",
+        help="Create S3 state bucket and DynamoDB lock table for Terraform remote state",
+    )
+    bootstrap_parser.add_argument(
+        "--bucket", required=True, help="S3 bucket name for Terraform state"
+    )
+    bootstrap_parser.add_argument(
+        "--table", required=True, help="DynamoDB table name for state locking"
+    )
+    bootstrap_parser.add_argument(
+        "--region", default="us-east-1", help="AWS region (default: us-east-1)"
+    )
+    bootstrap_parser.set_defaults(func=cmd_bootstrap)
 
     init_parser = sub.add_parser("init", help="Verify prerequisites")
     init_parser.set_defaults(func=cmd_init)

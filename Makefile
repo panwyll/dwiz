@@ -1,6 +1,9 @@
 PYTHON := python3
 
-.PHONY: lint test format dag-validate tf-init tf-plan tf-apply tf-fmt build deploy
+.PHONY: install lint test format dag-validate tf-init tf-plan tf-apply tf-fmt build deploy
+
+install:
+	$(PYTHON) -m pip install -e .
 
 lint:
 	$(PYTHON) -m ruff check .
