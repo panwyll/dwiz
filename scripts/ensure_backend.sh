@@ -19,9 +19,11 @@ if [[ ! -f "${BACKEND_FILE}" ]]; then
 fi
 
 # Extract bucket, table, and region from backend.tf
-BUCKET=$(grep -oP 'bucket\s*=\s*"\K[^"]+' "${BACKEND_FILE}" || echo "")
-TABLE=$(grep -oP 'dynamodb_table\s*=\s*"\K[^"]+' "${BACKEND_FILE}" || echo "")
-REGION=$(grep -oP 'region\s*=\s*"\K[^"]+' "${BACKEND_FILE}" || echo "us-east-1")
+# Using sed for better cross-platform compatibility
+BUCKET=$(sed -n 's/^[[:space:]]*bucket[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "${BACKEND_FILE}" | head -1)
+TABLE=$(sed -n 's/^[[:space:]]*dynamodb_table[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "${BACKEND_FILE}" | head -1)
+REGION=$(sed -n 's/^[[:space:]]*region[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "${BACKEND_FILE}" | head -1)
+REGION=${REGION:-us-east-1}
 
 if [[ -z "${BUCKET}" ]]; then
   echo "Error: Could not extract bucket name from ${BACKEND_FILE}"
@@ -40,7 +42,18 @@ echo "  Region: ${REGION}"
 echo ""
 
 # Check if bucket exists
+bucket_exists=false
 if aws s3api head-bucket --bucket "${BUCKET}" --region "${REGION}" 2>/dev/null; then
+  bucket_exists=true
+else
+  # head-bucket returns non-zero for both 404 (not exists) and 403 (forbidden)
+  # Try to list objects to distinguish between the two
+  if aws s3 ls "s3://${BUCKET}" --region "${REGION}" 2>/dev/null > /dev/null; then
+    bucket_exists=true
+  fi
+fi
+
+if ${bucket_exists}; then
   echo "✓ S3 bucket exists: ${BUCKET}"
 else
   echo "Creating S3 bucket: ${BUCKET}"
@@ -54,6 +67,22 @@ else
   echo "Enabling versioning on bucket: ${BUCKET}"
   aws s3api put-bucket-versioning --bucket "${BUCKET}" --region "${REGION}" \
     --versioning-configuration Status=Enabled
+  
+  echo "Enabling default encryption on bucket: ${BUCKET}"
+  aws s3api put-bucket-encryption --bucket "${BUCKET}" --region "${REGION}" \
+    --server-side-encryption-configuration '{
+      "Rules": [{
+        "ApplyServerSideEncryptionByDefault": {
+          "SSEAlgorithm": "AES256"
+        },
+        "BucketKeyEnabled": true
+      }]
+    }'
+  
+  echo "Blocking public access on bucket: ${BUCKET}"
+  aws s3api put-public-access-block --bucket "${BUCKET}" --region "${REGION}" \
+    --public-access-block-configuration \
+    "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
   
   echo "✓ Created S3 bucket: ${BUCKET}"
 fi
@@ -69,8 +98,12 @@ else
     --billing-mode PAY_PER_REQUEST \
     --attribute-definitions AttributeName=LockID,AttributeType=S \
     --key-schema AttributeName=LockID,KeyType=HASH \
+    --sse-specification Enabled=true,SSEType=KMS \
     --no-cli-pager \
     > /dev/null
+  
+  echo "Waiting for DynamoDB table to be ready..."
+  aws dynamodb wait table-exists --table-name "${TABLE}" --region "${REGION}"
   
   echo "✓ Created DynamoDB table: ${TABLE}"
 fi
