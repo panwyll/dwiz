@@ -4,7 +4,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from cli.wizard import build_parser, cmd_bootstrap, get_aws_account_id, validate_resource_names
+from cli.wizard import (
+    build_parser,
+    cmd_bootstrap,
+    get_aws_account_id,
+    get_github_repo_from_remote,
+    validate_resource_names,
+)
 
 
 def _bootstrap_args(**kwargs) -> argparse.Namespace:
@@ -593,3 +599,130 @@ def test_ensure_terraform_vars_updates_existing_tfvars(tmp_path) -> None:
         # Should preserve existing values
         assert 'repo = "old/repo"' in content
         assert 'region = "us-west-2"' in content
+
+
+def test_get_github_repo_from_remote_https() -> None:
+    """Test GitHub repo detection from HTTPS remote URL."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "https://github.com/owner/repo.git\n"
+
+    with patch("subprocess.run", return_value=mock_result):
+        repo = get_github_repo_from_remote()
+        assert repo == "owner/repo"
+
+
+def test_get_github_repo_from_remote_ssh() -> None:
+    """Test GitHub repo detection from SSH remote URL."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "git@github.com:owner/repo.git\n"
+
+    with patch("subprocess.run", return_value=mock_result):
+        repo = get_github_repo_from_remote()
+        assert repo == "owner/repo"
+
+
+def test_get_github_repo_from_remote_https_no_git_extension() -> None:
+    """Test GitHub repo detection from HTTPS URL without .git extension."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "https://github.com/myorg/myrepo\n"
+
+    with patch("subprocess.run", return_value=mock_result):
+        repo = get_github_repo_from_remote()
+        assert repo == "myorg/myrepo"
+
+
+def test_get_github_repo_from_remote_no_remote() -> None:
+    """Test GitHub repo detection when no remote is configured."""
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stdout = ""
+
+    with patch("subprocess.run", return_value=mock_result):
+        repo = get_github_repo_from_remote()
+        assert repo is None
+
+
+def test_get_github_repo_from_remote_non_github() -> None:
+    """Test GitHub repo detection with non-GitHub remote."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "https://gitlab.com/owner/repo.git\n"
+
+    with patch("subprocess.run", return_value=mock_result):
+        repo = get_github_repo_from_remote()
+        assert repo is None
+
+
+def test_get_github_repo_from_remote_error() -> None:
+    """Test GitHub repo detection handles exceptions gracefully."""
+    with patch("subprocess.run", side_effect=Exception("Git not found")):
+        repo = get_github_repo_from_remote()
+        assert repo is None
+
+
+def test_ensure_terraform_vars_with_detected_repo(tmp_path, capsys) -> None:
+    """Test that ensure_terraform_vars uses detected GitHub repo."""
+    from cli.wizard import ensure_terraform_vars
+
+    # Create mock environment directory
+    env_dir = tmp_path / "terraform" / "envs" / "dev"
+    env_dir.mkdir(parents=True)
+
+    with (
+        patch("cli.wizard.REPO_ROOT", tmp_path),
+        patch("cli.wizard.get_or_prompt_account_id") as mock_get_account,
+        patch("cli.wizard.get_github_repo_from_remote") as mock_get_repo,
+    ):
+        mock_get_account.return_value = "555555555555"
+        mock_get_repo.return_value = "myorg/myproject"
+
+        ensure_terraform_vars("dev")
+
+        tfvars_file = env_dir / "terraform.tfvars"
+        assert tfvars_file.exists()
+
+        content = tfvars_file.read_text()
+        assert 'account_id = "555555555555"' in content
+        assert 'repo = "myorg/myproject"' in content
+        expected_oidc_arn = (
+            "arn:aws:iam::555555555555:oidc-provider/token.actions.githubusercontent.com"
+        )
+        assert f'oidc_provider_arn = "{expected_oidc_arn}"' in content
+
+        # Check output messages
+        out = capsys.readouterr().out
+        assert "Detected GitHub repository from git remote: myorg/myproject" in out
+        assert f"Using OIDC provider ARN: {expected_oidc_arn}" in out
+
+
+def test_ensure_terraform_vars_fallback_repo(tmp_path, capsys) -> None:
+    """Test that ensure_terraform_vars falls back to default repo when detection fails."""
+    from cli.wizard import ensure_terraform_vars
+
+    # Create mock environment directory
+    env_dir = tmp_path / "terraform" / "envs" / "dev"
+    env_dir.mkdir(parents=True)
+
+    with (
+        patch("cli.wizard.REPO_ROOT", tmp_path),
+        patch("cli.wizard.get_or_prompt_account_id") as mock_get_account,
+        patch("cli.wizard.get_github_repo_from_remote") as mock_get_repo,
+    ):
+        mock_get_account.return_value = "666666666666"
+        mock_get_repo.return_value = None  # Detection failed
+
+        ensure_terraform_vars("dev")
+
+        tfvars_file = env_dir / "terraform.tfvars"
+        assert tfvars_file.exists()
+
+        content = tfvars_file.read_text()
+        assert 'account_id = "666666666666"' in content
+        assert 'repo = "panwyll/dwiz"' in content
+
+        # Check output messages
+        out = capsys.readouterr().out
+        assert "Could not detect GitHub repository from git remote" in out
