@@ -1,9 +1,9 @@
 import argparse
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from cli.genie import build_parser, cmd_bootstrap
+from cli.genie import build_parser, cmd_bootstrap, get_aws_account_id, validate_resource_names
 
 
 def _bootstrap_args(**kwargs) -> argparse.Namespace:
@@ -112,3 +112,97 @@ def test_bootstrap_prints_backend_config(capsys) -> None:
     assert "my-bucket" in out
     assert "my-table" in out
     assert "us-east-1" in out
+
+
+def test_get_aws_account_id_success() -> None:
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "123456789012\n"
+    with patch("subprocess.run", return_value=mock_result):
+        account_id = get_aws_account_id()
+        assert account_id == "123456789012"
+
+
+def test_get_aws_account_id_failure() -> None:
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    with patch("subprocess.run", return_value=mock_result):
+        account_id = get_aws_account_id()
+        assert account_id is None
+
+
+def test_validate_resource_names_detects_placeholder_bucket() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        validate_resource_names("YOUR_ORG-genie-tf-state", "my-lock")
+    assert "Placeholder values detected" in str(exc_info.value)
+    assert "YOUR_ORG-genie-tf-state" in str(exc_info.value)
+
+
+def test_validate_resource_names_detects_placeholder_table() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        validate_resource_names("my-bucket", "YOUR_ORG-genie-tf-lock")
+    assert "Placeholder values detected" in str(exc_info.value)
+    assert "YOUR_ORG-genie-tf-lock" in str(exc_info.value)
+
+
+def test_validate_resource_names_provides_suggestion_with_account_id() -> None:
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "123456789012\n"
+    with patch("subprocess.run", return_value=mock_result):
+        with pytest.raises(SystemExit) as exc_info:
+            validate_resource_names("YOUR_ORG-genie-tf-state", "YOUR_ORG-genie-tf-lock")
+        error_msg = str(exc_info.value)
+        assert "Your AWS Account ID: 123456789012" in error_msg
+        assert "123456789012-genie-tf-state" in error_msg
+        assert "123456789012-genie-tf-lock" in error_msg
+
+
+def test_validate_resource_names_provides_help_without_account_id() -> None:
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    with patch("subprocess.run", return_value=mock_result):
+        with pytest.raises(SystemExit) as exc_info:
+            validate_resource_names("YOUR-ORG-genie-tf-state", "my-lock")
+        error_msg = str(exc_info.value)
+        assert "aws sts get-caller-identity" in error_msg
+        assert "console.aws.amazon.com" in error_msg
+
+
+def test_validate_resource_names_bucket_too_short() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        validate_resource_names("ab", "my-lock")
+    assert "between 3 and 63 characters" in str(exc_info.value)
+
+
+def test_validate_resource_names_bucket_too_long() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        validate_resource_names("a" * 64, "my-lock")
+    assert "between 3 and 63 characters" in str(exc_info.value)
+
+
+def test_validate_resource_names_bucket_invalid_chars() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        validate_resource_names("My-Bucket", "my-lock")
+    assert "lowercase letters, numbers, hyphens, and periods" in str(exc_info.value)
+
+
+def test_validate_resource_names_bucket_starts_with_hyphen() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        validate_resource_names("-my-bucket", "my-lock")
+    assert "cannot start or end with a hyphen or period" in str(exc_info.value)
+
+
+def test_validate_resource_names_valid_names() -> None:
+    # Should not raise any exception
+    validate_resource_names("my-valid-bucket", "my-valid-table")
+    validate_resource_names("abc", "t")
+    validate_resource_names("bucket.with.dots", "table-with-dashes")
+
+
+def test_bootstrap_validates_names_before_creating() -> None:
+    args = _bootstrap_args(bucket="YOUR_ORG-genie-tf-state", table="my-lock")
+    with patch("cli.genie.require_tools"):
+        with pytest.raises(SystemExit) as exc_info:
+            cmd_bootstrap(args)
+        assert "Placeholder values detected" in str(exc_info.value)
