@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-logger = logging.getLogger("genie")
+logger = logging.getLogger("wizard")
 
 
 def emit_metric(name: str, value: float, **dimensions: Any) -> None:

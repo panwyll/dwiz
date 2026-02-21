@@ -18,8 +18,8 @@ def ingest_api() -> None:
     configure_logging()
     
     # Example: Retrieve API key from AWS Secrets Manager
-    # Replace 'genie-dev' with your actual secret prefix
-    # api_key = get_secret_value("genie-dev/api-keys", "example_api_key")
+    # Replace 'wizard-dev' with your actual secret prefix
+    # api_key = get_secret_value("wizard-dev/api-keys", "example_api_key")
     # Use api_key to authenticate with external API
     
     emit_metric("batch_api_ingest_runs", 1, source="example")

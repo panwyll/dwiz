@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from cli.genie import build_parser, cmd_billing, get_date_range
+from cli.wizard import build_parser, cmd_billing, get_date_range
 
 
 def _billing_args(period: str = "month") -> argparse.Namespace:
@@ -71,7 +71,7 @@ def test_get_date_range_invalid_period() -> None:
 
 def test_billing_displays_sorted_costs(capsys) -> None:
     args = _billing_args("month")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3:
         mock_ce = MagicMock()
         mock_ce.get_cost_and_usage.return_value = {
             "ResultsByTime": [
@@ -113,7 +113,7 @@ def test_billing_displays_sorted_costs(capsys) -> None:
 
 def test_billing_aggregates_multiple_time_periods(capsys) -> None:
     args = _billing_args("year")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3:
         mock_ce = MagicMock()
         # Simulate data from multiple months
         mock_ce.get_cost_and_usage.return_value = {
@@ -149,7 +149,7 @@ def test_billing_aggregates_multiple_time_periods(capsys) -> None:
 
 def test_billing_filters_negligible_costs(capsys) -> None:
     args = _billing_args("month")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3:
         mock_ce = MagicMock()
         mock_ce.get_cost_and_usage.return_value = {
             "ResultsByTime": [
@@ -180,7 +180,7 @@ def test_billing_filters_negligible_costs(capsys) -> None:
 
 def test_billing_handles_no_data(capsys) -> None:
     args = _billing_args("month")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3:
         mock_ce = MagicMock()
         mock_ce.get_cost_and_usage.return_value = {"ResultsByTime": []}
         mock_boto3.client.return_value = mock_ce
@@ -192,7 +192,7 @@ def test_billing_handles_no_data(capsys) -> None:
 
 def test_billing_handles_permission_error(capsys) -> None:
     args = _billing_args("month")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3:
         mock_ce = MagicMock()
         error_msg = "User is not authorized to perform: ce:GetCostAndUsage"
         mock_ce.get_cost_and_usage.side_effect = ClientError(
@@ -211,7 +211,7 @@ def test_billing_handles_permission_error(capsys) -> None:
 
 def test_billing_uses_cost_explorer_in_us_east_1() -> None:
     args = _billing_args("month")
-    with patch("cli.genie.require_tools"), patch("cli.genie.boto3") as mock_boto3:
+    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3:
         mock_ce = MagicMock()
         mock_ce.get_cost_and_usage.return_value = {"ResultsByTime": []}
         mock_boto3.client.return_value = mock_ce

@@ -312,7 +312,7 @@ def validate_resource_names(bucket: str, table: str) -> None:
                 suggested_table = suggested_table.replace(pattern, account_id)
             error_parts.append("Suggested command with your account ID:")
             error_parts.append(
-                f"  genie bootstrap --bucket {suggested_bucket} --table {suggested_table}"
+                f"  wizard bootstrap --bucket {suggested_bucket} --table {suggested_table}"
             )
         else:
             error_parts.append("To find your AWS Account ID, run:")
@@ -645,7 +645,7 @@ def cmd_billing(args: argparse.Namespace) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="genie")
+    parser = argparse.ArgumentParser(prog="wizard")
     sub = parser.add_subparsers(dest="command", required=True)
 
     bootstrap_parser = sub.add_parser(
