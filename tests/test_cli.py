@@ -687,18 +687,15 @@ def test_ensure_terraform_vars_with_detected_repo(tmp_path, capsys) -> None:
         content = tfvars_file.read_text()
         assert 'account_id = "555555555555"' in content
         assert 'repo = "myorg/myproject"' in content
-        assert (
-            'oidc_provider_arn = "arn:aws:iam::555555555555:oidc-provider/token.actions.githubusercontent.com"'
-            in content
+        expected_oidc_arn = (
+            "arn:aws:iam::555555555555:oidc-provider/token.actions.githubusercontent.com"
         )
+        assert f'oidc_provider_arn = "{expected_oidc_arn}"' in content
 
         # Check output messages
         out = capsys.readouterr().out
         assert "Detected GitHub repository from git remote: myorg/myproject" in out
-        assert (
-            "Using OIDC provider ARN: arn:aws:iam::555555555555:oidc-provider/token.actions.githubusercontent.com"
-            in out
-        )
+        assert f"Using OIDC provider ARN: {expected_oidc_arn}" in out
 
 
 def test_ensure_terraform_vars_fallback_repo(tmp_path, capsys) -> None:

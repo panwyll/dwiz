@@ -508,9 +508,12 @@ def test_up_command_runs_preflight() -> None:
     parser = build_parser()
     args = parser.parse_args(["up", "dev"])
 
-    with patch("cli.wizard.require_tools"), patch("cli.wizard.run_make"), patch(
-        "cli.wizard.run_preflight_check"
-    ) as mock_preflight:
+    with (
+        patch("cli.wizard.require_tools"),
+        patch("cli.wizard.run_make"),
+        patch("cli.wizard.run_preflight_check") as mock_preflight,
+        patch("cli.wizard.ensure_terraform_vars"),
+    ):
         cmd_up(args)
         mock_preflight.assert_called_once_with(verbose=False, write_probes=False)
 
