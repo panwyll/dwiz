@@ -1,2 +1,0 @@
-[console_scripts]
-genie = cli.genie:main
