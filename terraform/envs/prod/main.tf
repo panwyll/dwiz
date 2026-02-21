@@ -91,6 +91,19 @@ module "iam_prod" {
   resource_prefix   = var.project
 }
 
+module "dashboard" {
+  source         = "../../modules/dashboard"
+  name           = "${var.project}-prod"
+  environment    = local.env
+  region         = var.region
+  log_group_name = module.observability.log_group_name
+}
+
 output "dags_bucket" {
   value = module.mwaa.dags_bucket
+}
+
+output "dashboard_url" {
+  value       = module.dashboard.dashboard_url
+  description = "CloudWatch Dashboard URL"
 }
