@@ -1,6 +1,6 @@
 # Secrets Management
 
-This document describes how to securely manage secrets (API keys, database credentials, etc.) in the Data Platform Genie.
+This document describes how to securely manage secrets (API keys, database credentials, etc.) in the Data Platform Wizard.
 
 ## Overview
 

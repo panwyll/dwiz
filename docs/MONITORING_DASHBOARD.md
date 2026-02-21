@@ -1,6 +1,6 @@
 # Monitoring Dashboard
 
-The Data Platform Genie includes a comprehensive CloudWatch monitoring dashboard that provides visibility into both **usage metrics** and **billing/cost information** for your data platform infrastructure.
+The Data Platform Wizard includes a comprehensive CloudWatch monitoring dashboard that provides visibility into both **usage metrics** and **billing/cost information** for your data platform infrastructure.
 
 ## Features
 
