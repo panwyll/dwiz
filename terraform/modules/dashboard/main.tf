@@ -109,7 +109,7 @@ resource "aws_cloudwatch_dashboard" "main" {
               "AWS/Billing",
               "EstimatedCharges",
               {
-                stat = "Maximum",
+                stat  = "Maximum",
                 label = "Estimated Monthly Charges"
               }
             ]
