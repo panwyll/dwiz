@@ -106,6 +106,48 @@ def store_account_id(account_id: str) -> None:
     config_file.write_text(account_id)
 
 
+def get_github_repo_from_remote() -> str | None:
+    """Try to detect GitHub repository from git remote.
+    
+    Returns:
+        Repository in format "owner/repo" or None if not detected
+    """
+    try:
+        result = subprocess.run(
+            ["git", "config", "--get", "remote.origin.url"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            return None
+        
+        remote_url = result.stdout.strip()
+        if not remote_url:
+            return None
+        
+        # Parse GitHub URL (supports both HTTPS and SSH formats)
+        # HTTPS: https://github.com/owner/repo.git
+        # SSH: git@github.com:owner/repo.git
+        import re
+        
+        # Match GitHub URLs
+        patterns = [
+            r"github\.com[:/]([^/]+)/([^/\s]+?)(?:\.git)?$",  # Matches both HTTPS and SSH
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, remote_url)
+            if match:
+                owner, repo = match.groups()
+                return f"{owner}/{repo}"
+        
+        return None
+    except Exception:
+        return None
+
+
 def get_or_prompt_account_id() -> str:
     """Get account ID from AWS credentials, stored config, or prompt user.
     
@@ -162,16 +204,25 @@ def ensure_terraform_vars(env: str) -> None:
     env_dir = REPO_ROOT / "terraform" / "envs" / env
     tfvars_file = env_dir / "terraform.tfvars"
     
-    # Get account ID
+    # Get account ID (auto-detected or prompted)
     account_id = get_or_prompt_account_id()
     
-    # Determine OIDC provider ARN and repo from GitHub context if available
-    # For now, we'll use placeholder values that users need to configure
+    # Auto-detect GitHub repository from git remote
+    detected_repo = get_github_repo_from_remote()
+    if detected_repo:
+        print(f"✓ Detected GitHub repository from git remote: {detected_repo}")
+        repo = detected_repo
+    else:
+        # Fall back to default if detection fails
+        print("⚠ Could not detect GitHub repository from git remote, using default")
+        repo = "panwyll/dwiz"
+    
+    # Generate OIDC provider ARN using the account ID
+    # This is the standard ARN format for GitHub Actions OIDC provider
     oidc_provider_arn = (
         f"arn:aws:iam::{account_id}:oidc-provider/token.actions.githubusercontent.com"
     )
-    # Default repo value - users should update this in terraform.tfvars if different
-    repo = "panwyll/dwiz"
+    print(f"✓ Using OIDC provider ARN: {oidc_provider_arn}")
     
     # Read existing tfvars if it exists
     # Note: This is a simple parser that handles key = "value" format
@@ -207,13 +258,7 @@ def ensure_terraform_vars(env: str) -> None:
         for key, value in sorted(existing_vars.items()):
             f.write(f'{key} = "{value}"\n')
     
-    print(f"✓ Updated {tfvars_file}")
-    oidc_arn = existing_vars.get("oidc_provider_arn", "")
-    if not oidc_arn or "token.actions.githubusercontent.com" in oidc_arn:
-        print()
-        print("Note: OIDC provider ARN needs to be configured.")
-        print(f"      Edit {tfvars_file} and set the correct oidc_provider_arn value.")
-        print("      Or create the OIDC provider using terraform/modules/iam first.")
+    print(f"✓ Created/updated {tfvars_file} with auto-detected values")
 
 
 def parse_aws_permission_error(error: ClientError) -> list[str]:
