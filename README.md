@@ -40,8 +40,12 @@ The trust policy is scoped to this repo and specific ref. Policies are scoped to
 
 **Note:** The wizard will automatically:
 - Detect your AWS account ID from your credentials
-- Store it for future use in `.wizard/account_id`
-- Create/update `terraform.tfvars` with the account ID and other required variables
+- Detect your GitHub repository from the git remote (e.g., `owner/repo`)
+- Generate the OIDC provider ARN using your account ID
+- Store the account ID for future use in `.wizard/account_id`
+- Create/update `terraform.tfvars` with all required variables
+
+No manual input is needed for OIDC provider ARN or account ID when running `wizard up`.
 
 If you need to manually configure variables, edit `terraform/envs/{env}/terraform.tfvars`.
 
