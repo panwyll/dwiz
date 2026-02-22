@@ -26,7 +26,7 @@ tf-plan:
 	terraform -chdir=terraform/envs/$(ENV) plan
 
 tf-apply:
-	terraform -chdir=terraform/envs/$(ENV) apply -auto-approve
+	./scripts/tf_apply_wrapper.sh $(ENV)
 
 tf-fmt:
 	terraform fmt -recursive
