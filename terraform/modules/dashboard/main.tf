@@ -133,11 +133,11 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/Billing", "EstimatedCharges", { stat = "Maximum", label = "MWAA", dimensions = { ServiceName = "AmazonMWAA" } }],
-            ["...", { stat = "Maximum", label = "S3", dimensions = { ServiceName = "AmazonS3" } }],
-            ["...", { stat = "Maximum", label = "ECS", dimensions = { ServiceName = "AmazonECS" } }],
-            ["...", { stat = "Maximum", label = "Kinesis Firehose", dimensions = { ServiceName = "AmazonKinesisFirehose" } }],
-            ["...", { stat = "Maximum", label = "CloudWatch", dimensions = { ServiceName = "AWSCloudWatch" } }]
+            ["AWS/Billing", "EstimatedCharges", "ServiceName", "AmazonMWAA", { stat = "Maximum", label = "MWAA" }],
+            ["...", "...", "...", "AmazonS3", { stat = "Maximum", label = "S3" }],
+            ["...", "...", "...", "AmazonECS", { stat = "Maximum", label = "ECS" }],
+            ["...", "...", "...", "AmazonKinesisFirehose", { stat = "Maximum", label = "Kinesis Firehose" }],
+            ["...", "...", "...", "AWSCloudWatch", { stat = "Maximum", label = "CloudWatch" }]
           ]
           period = 21600
           stat   = "Maximum"
