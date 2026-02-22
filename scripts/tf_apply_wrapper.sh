@@ -63,7 +63,7 @@ done
 echo ""
 echo "═══════════════════════════════════════════════════════════════════"
 
-if [ $TERRAFORM_EXIT_CODE -eq 0 ]; then
+if [ "${TERRAFORM_EXIT_CODE}" -eq 0 ]; then
   echo "✅ Terraform apply completed successfully"
   echo "═══════════════════════════════════════════════════════════════════"
   exit 0
@@ -107,5 +107,5 @@ else
   echo "To continue with DAG deployment despite errors:"
   echo "  ./scripts/deploy_dags.sh ${ENVIRONMENT}"
   echo ""
-  exit $TERRAFORM_EXIT_CODE
+  exit "${TERRAFORM_EXIT_CODE}"
 fi

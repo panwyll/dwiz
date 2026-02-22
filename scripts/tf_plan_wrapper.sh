@@ -63,7 +63,7 @@ done
 echo ""
 echo "═══════════════════════════════════════════════════════════════════"
 
-if [ $TERRAFORM_EXIT_CODE -eq 0 ]; then
+if [ "${TERRAFORM_EXIT_CODE}" -eq 0 ]; then
   echo "✅ Terraform plan completed successfully"
   echo "═══════════════════════════════════════════════════════════════════"
   exit 0
@@ -92,5 +92,5 @@ else
   echo "    → Check your AWS credentials: aws sts get-caller-identity"
   echo "    → Verify IAM permissions for your user/role"
   echo ""
-  exit $TERRAFORM_EXIT_CODE
+  exit "${TERRAFORM_EXIT_CODE}"
 fi
