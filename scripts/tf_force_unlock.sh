@@ -93,7 +93,7 @@ UNLOCK_EXIT_CODE=$?
 echo ""
 echo "═══════════════════════════════════════════════════════════════════"
 
-if [ $UNLOCK_EXIT_CODE -eq 0 ]; then
+if [ ${UNLOCK_EXIT_CODE} -eq 0 ]; then
   echo "✅ Successfully unlocked Terraform state"
   echo "═══════════════════════════════════════════════════════════════════"
   echo ""
@@ -107,5 +107,5 @@ else
   echo ""
   echo "If the unlock failed, the lock may have already been released."
   echo "Try running 'make tf-plan ENV=${ENVIRONMENT}' to verify."
-  exit $UNLOCK_EXIT_CODE
+  exit ${UNLOCK_EXIT_CODE}
 fi

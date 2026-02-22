@@ -811,7 +811,8 @@ def cmd_unlock(args: argparse.Namespace) -> None:
         raise SystemExit("env must be dev, prod, or test")
     
     # Run the unlock script
-    extra_env = {"LOCK_ID": args.lock_id} if args.lock_id else {}
+    # Only include LOCK_ID in env if it has a non-empty value
+    extra_env = {"LOCK_ID": args.lock_id} if args.lock_id and args.lock_id.strip() else {}
     run_make("tf-unlock", args.env, extra_env=extra_env)
 
 
