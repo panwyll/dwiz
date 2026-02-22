@@ -26,8 +26,7 @@ tf-check-lock:
 	./scripts/check_state_lock.sh $(ENV) $(MAX_RETRIES) $(RETRY_DELAY)
 
 tf-plan:
-	./scripts/check_state_lock.sh $(ENV) 3 15 || true
-	terraform -chdir=terraform/envs/$(ENV) plan
+	./scripts/tf_plan_wrapper.sh $(ENV)
 
 tf-apply:
 	./scripts/tf_apply_wrapper.sh $(ENV)

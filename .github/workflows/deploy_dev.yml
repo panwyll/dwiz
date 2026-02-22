@@ -31,7 +31,6 @@ jobs:
         run: make tf-init ENV=dev
       - name: Terraform plan
         run: make tf-plan ENV=dev
-        continue-on-error: true
       - name: Terraform apply
         run: make tf-apply ENV=dev
       - name: Deploy DAGs
