@@ -89,7 +89,15 @@ Lock Info:
   ...
 ```
 
-To fix this, use the unlock command with the Lock ID from the error message:
+**Automatic Retry**: The deployment scripts now automatically check for and retry on state lock conflicts. This handles transient lock issues without manual intervention.
+
+**Check State Lock**: To check if a state lock exists before running Terraform:
+
+```bash
+make tf-check-lock ENV=dev
+```
+
+**Manual Unlock**: If you're sure no operations are running, force unlock with the Lock ID from the error message:
 
 ```bash
 # Using dwiz CLI (recommended)
@@ -101,7 +109,13 @@ make tf-unlock ENV=dev LOCK_ID=bbfc73fb-7f79-0d42-2239-0f2ba22ec62d
 
 If you don't provide the lock ID, you'll be prompted to enter it interactively.
 
-**Warning:** Only use this command if you're sure no Terraform operations are currently running. Force unlocking while another process is running can lead to state corruption.
+**Warning:** Only use force unlock if you're sure no Terraform operations are currently running. Force unlocking while another process is running can lead to state corruption.
+
+**Best Practices**:
+- Always wait for Terraform operations to complete naturally
+- Use `Ctrl+C` carefully - it may leave locks behind
+- In CI/CD, the automatic retry logic handles most lock conflicts
+- For persistent locks, verify no operations are running before force-unlocking
 
 ## Adding pipelines
 

@@ -1,6 +1,6 @@
 PYTHON := python3
 
-.PHONY: install lint test format dag-validate tf-init tf-plan tf-apply tf-destroy tf-unlock tf-fmt build deploy
+.PHONY: install lint test format dag-validate tf-init tf-plan tf-apply tf-destroy tf-unlock tf-check-lock tf-fmt build deploy
 
 install:
 	$(PYTHON) -m pip install -e .
@@ -22,7 +22,11 @@ tf-init:
 	./scripts/ensure_backend.sh $(ENV)
 	terraform -chdir=terraform/envs/$(ENV) init $(TF_INIT_FLAGS)
 
+tf-check-lock:
+	./scripts/check_state_lock.sh $(ENV) $(MAX_RETRIES) $(RETRY_DELAY)
+
 tf-plan:
+	./scripts/check_state_lock.sh $(ENV) 3 15 || true
 	terraform -chdir=terraform/envs/$(ENV) plan
 
 tf-apply:

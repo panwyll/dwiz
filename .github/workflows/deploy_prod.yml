@@ -22,7 +22,17 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_PROD }}
           aws-region: us-east-1
+      - name: Check state lock
+        run: |
+          echo "Checking for existing state locks..."
+          ./scripts/check_state_lock.sh prod 3 15 || echo "State lock detected, will retry during apply"
+        continue-on-error: true
+      - name: Terraform init
+        run: make tf-init ENV=prod
+      - name: Terraform plan
+        run: make tf-plan ENV=prod
+        continue-on-error: true
       - name: Terraform apply
-        run: make tf-init tf-apply ENV=prod
+        run: make tf-apply ENV=prod
       - name: Deploy DAGs
         run: ./scripts/deploy_dags.sh prod

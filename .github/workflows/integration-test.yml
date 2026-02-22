@@ -64,6 +64,30 @@ jobs:
           make tf-init ENV=test
         continue-on-error: true
       
+      - name: Check for state lock
+        if: steps.check-aws.outputs.has_credentials == 'true'
+        run: |
+          echo "🔍 Checking for existing state locks..."
+          ./scripts/check_state_lock.sh test 5 20 || echo "⚠️  State lock detected"
+        continue-on-error: true
+      
+      - name: Check for existing resources
+        if: steps.check-aws.outputs.has_credentials == 'true'
+        id: check-resources
+        run: |
+          echo "🔍 Checking for existing test infrastructure..."
+          if terraform -chdir=terraform/envs/test state list 2>/dev/null | grep -q .; then
+            echo "has_resources=true" >> $GITHUB_OUTPUT
+            echo "⚠️  Existing resources detected in state"
+            echo ""
+            echo "Resources in state:"
+            terraform -chdir=terraform/envs/test state list | head -20
+          else
+            echo "has_resources=false" >> $GITHUB_OUTPUT
+            echo "✓ No existing resources found"
+          fi
+        continue-on-error: true
+      
       - name: Terraform plan
         if: steps.check-aws.outputs.has_credentials == 'true'
         run: |
@@ -76,7 +100,14 @@ jobs:
         id: deploy
         run: |
           echo "🚀 Deploying test infrastructure..."
-          echo "This will test the fix for hanging during 'Releasing state lock' message"
+          echo "This will test state lock handling and retry logic"
+          
+          # If resources already exist, try to refresh state first
+          if [ "${{ steps.check-resources.outputs.has_resources }}" == "true" ]; then
+            echo "Refreshing existing state..."
+            terraform -chdir=terraform/envs/test refresh || true
+          fi
+          
           make tf-apply ENV=test
         continue-on-error: true
       
