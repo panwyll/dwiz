@@ -5,6 +5,15 @@ Data Platform Dwiz provides a minimal, Terraform-first AWS data platform with Ai
 ## Prerequisites
 
 - AWS account with permissions to create IAM roles, VPC, S3, MWAA, ECS, CloudWatch, and Kinesis Firehose resources.
+  - For initial deployment, your AWS user/role needs:
+    - IAM: `CreateRole`, `PutRolePolicy`, `GetRole`, `TagRole`, `PassRole`
+    - S3: `CreateBucket`, `PutBucketTagging`, `GetAccountPublicAccessBlock`
+    - MWAA: `CreateEnvironment`, `GetEnvironment`
+    - EC2: `CreateVpc`, `CreateSubnet`, `CreateSecurityGroup`, `DescribeVpcs`, `DescribeSubnets`, etc.
+    - CloudWatch: `CreateLogGroup`, `PutRetentionPolicy`
+    - ECS: `CreateCluster`, `DescribeClusters`
+    - Kinesis Firehose: `CreateDeliveryStream`, `DescribeDeliveryStream`
+  - Note: The permissions above are for your user/role when running Terraform locally or in CI/CD. The IAM module (`terraform/modules/iam/main.tf`) creates separate GitHub Actions roles with similar scoped permissions for automated deployments.
 - Terraform >= 1.5
 - Python 3.11
 - AWS CLI (for local credentials) and Docker (for building job images)
@@ -111,6 +120,28 @@ Additionally:
 - Review CloudWatch Logs for task failures.
 
 ## Troubleshooting
+
+### IAM Role already exists error
+
+If you see an error like `EntityAlreadyExists: Role with name github-deploy-dev already exists`, this means the IAM role was created in a previous deployment but is not in your Terraform state.
+
+**Solution**: Import the existing role into Terraform state:
+
+```bash
+# For dev environment
+terraform -chdir=terraform/envs/dev import module.iam_dev.aws_iam_role.github github-deploy-dev
+
+# For prod environment
+terraform -chdir=terraform/envs/prod import module.iam_prod.aws_iam_role.github github-deploy-prod
+```
+
+After importing, run `dwiz up <env>` again to continue with the deployment.
+
+### MWAA permission errors during creation
+
+MWAA requires the `s3:GetAccountPublicAccessBlock` permission to validate S3 bucket configurations during environment creation. This permission is now included in the MWAA execution role policy (as of the latest version).
+
+If you're upgrading from an older version and see this error, run `terraform apply` to update the MWAA role with the new permissions.
 
 ### Terraform backend configuration changed error
 
