@@ -54,7 +54,7 @@ module "mwaa" {
     module.secrets_manager.api_keys_secret_arn,
     module.secrets_manager.database_secret_arn,
     module.secrets_manager.streaming_secret_arn,
-    "${module.secrets_manager.secret_prefix}*"
+    "${module.secrets_manager.secret_arn_prefix}*"
   ]
   kms_key_arn = module.secrets_manager.kms_key_arn
 }

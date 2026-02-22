@@ -2,6 +2,10 @@ terraform {
   required_version = ">= 1.5"
 }
 
+data "aws_region" "current" {}
+
+data "aws_caller_identity" "current" {}
+
 # KMS key for encrypting secrets
 resource "aws_kms_key" "secrets" {
   description             = "KMS key for encrypting secrets in ${var.environment}"
@@ -73,4 +77,9 @@ output "streaming_secret_arn" {
 
 output "secret_prefix" {
   value = "${var.name}/"
+}
+
+output "secret_arn_prefix" {
+  value       = "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${var.name}/"
+  description = "ARN prefix for secrets with this prefix"
 }
