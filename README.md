@@ -139,7 +139,7 @@ After importing, run `dwiz up <env>` again to continue with the deployment.
 
 ### MWAA permission errors during creation
 
-MWAA requires the `s3:GetAccountPublicAccessBlock` permission to validate S3 bucket configurations during environment creation. This permission is now included in the MWAA execution role policy (as of the latest version).
+MWAA requires the `s3:GetAccountPublicAccessBlock` and `s3:GetBucketPublicAccessBlock` permissions to validate S3 bucket configurations during environment creation. These permissions are now included in the MWAA execution role policy (as of the latest version).
 
 If you're upgrading from an older version and see this error, run `terraform apply` to update the MWAA role with the new permissions.
 

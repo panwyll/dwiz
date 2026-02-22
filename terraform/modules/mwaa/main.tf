@@ -41,7 +41,8 @@ resource "aws_iam_role_policy" "mwaa" {
         Effect = "Allow"
         Action = [
           "s3:ListBucket",
-          "s3:GetBucketLocation"
+          "s3:GetBucketLocation",
+          "s3:GetBucketPublicAccessBlock"
         ]
         Resource = aws_s3_bucket.dags.arn
       },
