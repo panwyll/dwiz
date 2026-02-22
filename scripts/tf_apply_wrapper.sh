@@ -45,16 +45,10 @@ attempt=1
 TERRAFORM_EXIT_CODE=1
 TERRAFORM_OUTPUT_FILE=$(mktemp)
 
-while [ "${attempt}" -le "${MAX_RETRIES}" ] && [ "${TERRAFORM_EXIT_CODE}" -ne 0 ]; do
-  if [ "${attempt}" -gt 1 ]; then
-    echo ""
-    echo "═══════════════════════════════════════════════════════════════════"
-    echo "  Retry attempt ${attempt}/${MAX_RETRIES} after ${RETRY_DELAY} seconds"
-    echo "═══════════════════════════════════════════════════════════════════"
-    echo ""
-    sleep "${RETRY_DELAY}"
-  fi
+# Ensure temporary file is cleaned up on exit
+trap 'rm -f "${TERRAFORM_OUTPUT_FILE}"' EXIT
 
+while [ "${attempt}" -le "${MAX_RETRIES}" ] && [ "${TERRAFORM_EXIT_CODE}" -ne 0 ]; do
   # Run terraform apply and capture both output and exit code
   set +e
   terraform -chdir="terraform/envs/${ENVIRONMENT}" apply -auto-approve 2>&1 | tee "${TERRAFORM_OUTPUT_FILE}"
@@ -68,10 +62,13 @@ while [ "${attempt}" -le "${MAX_RETRIES}" ] && [ "${TERRAFORM_EXIT_CODE}" -ne 0 
        grep -q "Environments with UPDATING status must complete previous operation" "${TERRAFORM_OUTPUT_FILE}" || \
        grep -q "Environments with DELETING status must complete previous operation" "${TERRAFORM_OUTPUT_FILE}"; then
       if [ "${attempt}" -lt "${MAX_RETRIES}" ]; then
+        echo ""
         echo "⚠️  MWAA environment is in transitional state - will retry after environment stabilizes"
+        # Use exponential backoff for MWAA operations as they can take several minutes
+        MWAA_RETRY_DELAY=$((RETRY_DELAY * 2 * attempt))
+        echo "    Retry attempt $((attempt + 1))/${MAX_RETRIES} after ${MWAA_RETRY_DELAY} seconds"
+        sleep "${MWAA_RETRY_DELAY}"
         attempt=$((attempt + 1))
-        # Increase delay for MWAA operations as they can take several minutes
-        RETRY_DELAY=$((RETRY_DELAY * 2))
         continue
       fi
     fi
@@ -84,17 +81,17 @@ while [ "${attempt}" -le "${MAX_RETRIES}" ] && [ "${TERRAFORM_EXIT_CODE}" -ne 0 
 
     # Generic retry logic for other errors
     if [ "${attempt}" -lt "${MAX_RETRIES}" ]; then
+      echo ""
       echo "⚠️  Terraform apply failed (exit code: ${TERRAFORM_EXIT_CODE})"
       echo "Checking if this is a retryable issue..."
+      echo "    Retry attempt $((attempt + 1))/${MAX_RETRIES} after ${RETRY_DELAY} seconds"
+      sleep "${RETRY_DELAY}"
       attempt=$((attempt + 1))
     else
       break
     fi
   fi
 done
-
-# Cleanup temporary file
-rm -f "${TERRAFORM_OUTPUT_FILE}"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════════"
