@@ -757,7 +757,6 @@ def test_up_parser_default_flags() -> None:
     assert args.migrate_state is False
 
 
-
 def test_cmd_up_with_reconfigure_flag() -> None:
     """Test that cmd_up passes reconfigure flag to terraform init."""
     from cli.dwiz import cmd_up

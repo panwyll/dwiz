@@ -676,19 +676,19 @@ def cmd_up(args: argparse.Namespace) -> None:
     
     # Determine terraform init flags
     tf_init_flags = ""
-    if hasattr(args, "migrate_state") and args.migrate_state:
+    if args.migrate_state:
         tf_init_flags = "-migrate-state"
-    elif hasattr(args, "reconfigure") and args.reconfigure:
+    elif args.reconfigure:
         tf_init_flags = "-reconfigure"
     
     # Try to run terraform init
     try:
         extra_env = {"TF_INIT_FLAGS": tf_init_flags} if tf_init_flags else None
         run_make("tf-init", args.env, extra_env=extra_env)
-    except SystemExit as e:
+    except SystemExit:
         # Check if this is a backend configuration changed error
         # If so, retry with -reconfigure flag
-        if e.code != 0 and not tf_init_flags:
+        if not tf_init_flags:
             # Run terraform init with -reconfigure to handle backend changes
             print("\nBackend configuration changed detected. Retrying with -reconfigure flag...")
             try:
