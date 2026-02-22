@@ -2,6 +2,10 @@ terraform {
   required_version = ">= 1.5"
 }
 
+data "aws_region" "current" {}
+
+data "aws_caller_identity" "current" {}
+
 resource "aws_s3_bucket" "dags" {
   bucket = var.dags_bucket
   tags = {
@@ -60,7 +64,7 @@ resource "aws_iam_role_policy" "mwaa" {
           "logs:GetLogGroupFields",
           "logs:GetQueryResults"
         ]
-        Resource = "arn:aws:logs:*:*:log-group:airflow-${var.name}-*"
+        Resource = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:airflow-${var.name}-*"
       },
       {
         Effect = "Allow"
@@ -79,7 +83,7 @@ resource "aws_iam_role_policy" "mwaa" {
           "sqs:ReceiveMessage",
           "sqs:SendMessage"
         ]
-        Resource = "arn:aws:sqs:*:*:airflow-celery-*"
+        Resource = "arn:aws:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:airflow-celery-*"
       },
       {
         Effect = "Allow"
