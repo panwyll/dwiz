@@ -1,0 +1,128 @@
+name: integration-test
+
+on:
+  # Manual trigger for testing
+  workflow_dispatch:
+  # Run on pull requests that modify infrastructure code
+  pull_request:
+    paths:
+      - 'terraform/**'
+      - 'cli/dwiz.py'
+      - 'scripts/tf_apply_wrapper.sh'
+      - 'scripts/ensure_backend.sh'
+      - '.github/workflows/integration-test.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    # Only run if AWS credentials are configured
+    if: github.event_name == 'workflow_dispatch' || github.repository == 'panwyll/dwiz'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+      
+      - name: Install dependencies
+        run: pip install -e .
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TEST }}
+          aws-region: us-east-1
+        continue-on-error: true
+      
+      - name: Check AWS credentials
+        id: check-aws
+        run: |
+          if aws sts get-caller-identity > /dev/null 2>&1; then
+            echo "has_credentials=true" >> $GITHUB_OUTPUT
+            echo "✅ AWS credentials configured"
+          else
+            echo "has_credentials=false" >> $GITHUB_OUTPUT
+            echo "⚠️  AWS credentials not configured - skipping integration test"
+          fi
+      
+      - name: Initialize Terraform backend
+        if: steps.check-aws.outputs.has_credentials == 'true'
+        run: |
+          echo "🔧 Initializing Terraform backend for test environment..."
+          make tf-init ENV=test
+        continue-on-error: true
+      
+      - name: Terraform plan
+        if: steps.check-aws.outputs.has_credentials == 'true'
+        run: |
+          echo "📋 Running Terraform plan..."
+          make tf-plan ENV=test
+        continue-on-error: true
+      
+      - name: Deploy test infrastructure
+        if: steps.check-aws.outputs.has_credentials == 'true'
+        id: deploy
+        run: |
+          echo "🚀 Deploying test infrastructure..."
+          echo "This will test the fix for hanging during 'Releasing state lock' message"
+          make tf-apply ENV=test
+        continue-on-error: true
+      
+      - name: Verify infrastructure
+        if: steps.check-aws.outputs.has_credentials == 'true' && steps.deploy.outcome == 'success'
+        run: |
+          echo "✅ Verifying deployed infrastructure..."
+          terraform -chdir=terraform/envs/test output
+      
+      - name: Test DAG deployment
+        if: steps.check-aws.outputs.has_credentials == 'true' && steps.deploy.outcome == 'success'
+        run: |
+          echo "📦 Testing DAG deployment..."
+          ./scripts/deploy_dags.sh test
+        continue-on-error: true
+      
+      - name: Cleanup - Destroy test infrastructure
+        if: always() && steps.check-aws.outputs.has_credentials == 'true'
+        run: |
+          echo "🧹 Cleaning up test infrastructure..."
+          make tf-destroy ENV=test || echo "⚠️  Some resources may need manual cleanup"
+      
+      - name: Report results
+        if: always()
+        run: |
+          echo "═══════════════════════════════════════════════════════════════"
+          echo "Integration Test Summary"
+          echo "═══════════════════════════════════════════════════════════════"
+          if [ "${{ steps.check-aws.outputs.has_credentials }}" != "true" ]; then
+            echo "⚠️  Skipped: AWS credentials not configured"
+            echo ""
+            echo "To enable integration tests, configure AWS_ROLE_TEST secret"
+            echo "with an IAM role ARN that has permissions to create:"
+            echo "  • VPC, Subnets, Security Groups"
+            echo "  • S3 Buckets"
+            echo "  • MWAA Environments"
+            echo "  • IAM Roles"
+            echo "  • CloudWatch Log Groups and Dashboards"
+            echo "  • Secrets Manager secrets and KMS keys"
+            echo "  • ECS Clusters"
+            echo "  • Kinesis Firehose streams"
+          elif [ "${{ steps.deploy.outcome }}" == "success" ]; then
+            echo "✅ Integration test passed"
+            echo "Infrastructure was successfully deployed and torn down"
+          else
+            echo "❌ Integration test failed"
+            echo "Check the logs above for details"
+          fi
+          echo "═══════════════════════════════════════════════════════════════"

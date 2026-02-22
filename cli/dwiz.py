@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 from cli.aws_preflight import check_aws_credentials, run_preflight_check
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-TERRAFORM_ENVS = {"dev", "prod"}
+TERRAFORM_ENVS = {"dev", "prod", "test"}
 NEGLIGIBLE_COST_THRESHOLD = 0.01  # Filter out costs below 1 cent
 DWIZ_CONFIG_DIR = REPO_ROOT / ".dwiz"
 
@@ -44,21 +44,9 @@ def run_make(
         cwd=REPO_ROOT,
         env=env_vars,
         check=False,
-        capture_output=True,
-        text=True,
     )
     if result.returncode != 0:
-        # Print captured output before exiting
-        if result.stdout:
-            print(result.stdout, end="")
-        if result.stderr:
-            print(result.stderr, end="")
         raise SystemExit(result.returncode)
-    # Print captured output on success too
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="")
     return result
 
 
