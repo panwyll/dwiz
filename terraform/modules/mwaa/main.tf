@@ -37,13 +37,49 @@ resource "aws_iam_role_policy" "mwaa" {
         Effect = "Allow"
         Action = [
           "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = aws_s3_bucket.dags.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "s3:GetObject",
           "s3:PutObject"
         ]
-        Resource = [
-          aws_s3_bucket.dags.arn,
-          "${aws_s3_bucket.dags.arn}/*"
+        Resource = "${aws_s3_bucket.dags.arn}/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:CreateLogGroup",
+          "logs:PutLogEvents",
+          "logs:GetLogEvents",
+          "logs:GetLogRecord",
+          "logs:GetLogGroupFields",
+          "logs:GetQueryResults"
         ]
+        Resource = "arn:aws:logs:*:*:log-group:airflow-${var.name}-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:ChangeMessageVisibility",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl",
+          "sqs:ReceiveMessage",
+          "sqs:SendMessage"
+        ]
+        Resource = "arn:aws:sqs:*:*:airflow-celery-*"
       },
       {
         Effect = "Allow"
@@ -57,7 +93,9 @@ resource "aws_iam_role_policy" "mwaa" {
         Effect = "Allow"
         Action = [
           "kms:Decrypt",
-          "kms:DescribeKey"
+          "kms:DescribeKey",
+          "kms:GenerateDataKey*",
+          "kms:Encrypt"
         ]
         Resource = [var.kms_key_arn]
       }
