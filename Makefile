@@ -20,7 +20,7 @@ dag-validate:
 
 tf-init:
 	./scripts/ensure_backend.sh $(ENV)
-	terraform -chdir=terraform/envs/$(ENV) init
+	terraform -chdir=terraform/envs/$(ENV) init $(TF_INIT_FLAGS)
 
 tf-plan:
 	terraform -chdir=terraform/envs/$(ENV) plan
