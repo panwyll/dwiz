@@ -48,6 +48,13 @@ resource "aws_iam_role_policy" "mwaa" {
       {
         Effect = "Allow"
         Action = [
+          "s3:GetAccountPublicAccessBlock"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "s3:GetObject",
           "s3:PutObject"
         ]
