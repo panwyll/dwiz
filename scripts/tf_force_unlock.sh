@@ -40,6 +40,13 @@ echo ""
 
 # If LOCK_ID is not provided, prompt for it or try to get it from error output
 if [[ -z "${LOCK_ID}" ]]; then
+  # Check if running in an interactive terminal
+  if [[ ! -t 0 ]]; then
+    echo "Error: Lock ID is required when running in non-interactive mode"
+    echo "Usage: ${0} <dev|prod|test> <lock_id>"
+    exit 1
+  fi
+  
   echo "To find the Lock ID, look at the error message from 'make tf-plan' or 'make tf-apply'."
   echo "The Lock ID is shown in the error output, for example:"
   echo "  Lock Info:"
@@ -58,6 +65,16 @@ echo "Region: ${REGION}"
 echo ""
 
 # Confirm before unlocking
+# Check if running in an interactive terminal
+if [[ ! -t 0 ]]; then
+  echo "Error: Running in non-interactive mode requires explicit confirmation"
+  echo "This command requires interactive confirmation to prevent accidental state corruption"
+  echo "If you need to run this in a non-interactive environment (e.g., CI/CD),"
+  echo "use terraform force-unlock directly with the -force flag:"
+  echo "  terraform -chdir=terraform/envs/${ENVIRONMENT} force-unlock -force ${LOCK_ID}"
+  exit 1
+fi
+
 read -p "Are you sure you want to force unlock? (yes/no): " CONFIRM
 
 if [[ "${CONFIRM}" != "yes" ]]; then

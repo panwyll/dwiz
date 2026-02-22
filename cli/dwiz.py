@@ -811,7 +811,8 @@ def cmd_unlock(args: argparse.Namespace) -> None:
         raise SystemExit("env must be dev, prod, or test")
     
     # Run the unlock script
-    run_make("tf-unlock", args.env, extra_env={"LOCK_ID": args.lock_id or ""})
+    extra_env = {"LOCK_ID": args.lock_id} if args.lock_id else {}
+    run_make("tf-unlock", args.env, extra_env=extra_env)
 
 
 def cmd_new_source(args: argparse.Namespace) -> None:
