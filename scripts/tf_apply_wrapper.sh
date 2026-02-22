@@ -39,13 +39,13 @@ while [ ${attempt} -le ${MAX_RETRIES} ] && [ ${TERRAFORM_EXIT_CODE} -ne 0 ]; do
     echo ""
     sleep ${RETRY_DELAY}
   fi
-  
+
   # Run terraform apply and capture the exit code
   set +e
   terraform -chdir=terraform/envs/${ENVIRONMENT} apply -auto-approve
   TERRAFORM_EXIT_CODE=$?
   set -e
-  
+
   # Check if error was due to state lock
   if [ ${TERRAFORM_EXIT_CODE} -ne 0 ]; then
     # If this is a state lock error, we'll retry
@@ -71,7 +71,7 @@ else
   echo "⚠️  Terraform apply exited with code ${TERRAFORM_EXIT_CODE}"
   echo "═══════════════════════════════════════════════════════════════════"
   echo ""
-  
+
   # Check if we should suggest importing existing resources
   echo "Common causes and solutions:"
   echo ""

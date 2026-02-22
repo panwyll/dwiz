@@ -52,7 +52,7 @@ check_lock() {
     --key "{\"LockID\": {\"S\": \"${LOCK_KEY}\"}}" \
     --region "${REGION}" \
     --output json 2>/dev/null); then
-    
+
     if echo "${lock_info}" | grep -q '"Item"'; then
       # Lock exists, extract info if possible
       echo "${lock_info}"
@@ -71,13 +71,13 @@ check_lock() {
 attempt=1
 while [ ${attempt} -le ${MAX_RETRIES} ]; do
   echo "Attempt ${attempt}/${MAX_RETRIES}: Checking for state lock..."
-  
+
   if lock_info=$(check_lock); then
     echo ""
     echo "⚠️  State lock detected:"
     echo "${lock_info}" | grep -E '"(ID|Who|Created|Operation)"' | sed 's/^/  /' || echo "  (Unable to parse lock details)"
     echo ""
-    
+
     if [ ${attempt} -lt ${MAX_RETRIES} ]; then
       echo "Waiting ${RETRY_DELAY} seconds before retry..."
       sleep ${RETRY_DELAY}
