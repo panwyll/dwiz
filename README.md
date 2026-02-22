@@ -110,6 +110,22 @@ Additionally:
 - Use `scripts/smoke_test.sh` to confirm the environment is reachable and DAGs can be parsed.
 - Review CloudWatch Logs for task failures.
 
+## Troubleshooting
+
+### Terraform backend configuration changed error
+
+When you run `dwiz up <env>` and see the error "Backend configuration changed", the dwiz CLI will automatically retry with the `-reconfigure` flag. This handles most common scenarios where the backend configuration has been updated (e.g., after running `dwiz bootstrap` with different bucket/table names).
+
+If automatic retry fails, you can explicitly control the initialization:
+
+```bash
+# Reconfigure backend without migrating state (most common)
+dwiz up dev --reconfigure
+
+# Migrate existing state to new backend configuration
+dwiz up dev --migrate-state
+```
+
 ## Development
 
 ```bash
