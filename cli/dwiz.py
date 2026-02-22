@@ -670,7 +670,7 @@ def cmd_up(args: argparse.Namespace) -> None:
     if args.env not in TERRAFORM_ENVS:
         raise SystemExit("env must be dev or prod")
     
-    # Track overall success
+    # Track deployment progress
     steps_completed = []
     steps_failed = []
     
@@ -771,7 +771,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     if args.env not in TERRAFORM_ENVS:
         raise SystemExit("env must be dev or prod")
     
-    # Track overall success
+    # Track deployment progress
     steps_completed = []
     steps_failed = []
     
