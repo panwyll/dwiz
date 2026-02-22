@@ -13,7 +13,7 @@ Data Platform Dwiz provides a minimal, Terraform-first AWS data platform with Ai
     - CloudWatch: `CreateLogGroup`, `PutRetentionPolicy`
     - ECS: `CreateCluster`, `DescribeClusters`
     - Kinesis Firehose: `CreateDeliveryStream`, `DescribeDeliveryStream`
-  - See `terraform/modules/iam/main.tf` for the complete list of permissions granted to GitHub Actions
+  - Note: The permissions above are for your user/role when running Terraform locally or in CI/CD. The IAM module (`terraform/modules/iam/main.tf`) creates separate GitHub Actions roles with similar scoped permissions for automated deployments.
 - Terraform >= 1.5
 - Python 3.11
 - AWS CLI (for local credentials) and Docker (for building job images)

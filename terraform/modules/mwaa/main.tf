@@ -47,6 +47,8 @@ resource "aws_iam_role_policy" "mwaa" {
       },
       {
         Effect = "Allow"
+        # AWS requires GetAccountPublicAccessBlock to be granted at the account level (Resource = "*")
+        # This is an AWS requirement for MWAA environment creation, not a security oversight
         Action = [
           "s3:GetAccountPublicAccessBlock"
         ]
