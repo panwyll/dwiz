@@ -164,3 +164,9 @@ make lint
 make test
 make dag-validate
 ```
+
+### Integration Testing
+
+Automated end-to-end tests deploy and tear down infrastructure in AWS to validate the complete flow. See [docs/INTEGRATION_TESTING.md](docs/INTEGRATION_TESTING.md) for details.
+
+Tests run automatically on pull requests that modify infrastructure code, or can be triggered manually via GitHub Actions.
