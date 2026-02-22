@@ -26,9 +26,24 @@ else
   echo ""
 fi
 
+# Check MWAA environment status to avoid operations during transitional states
+echo "Checking MWAA environment status..."
+MWAA_ENV_NAME="dwiz-mwaa-${ENVIRONMENT}"
+if ./scripts/check_mwaa_status.sh "${MWAA_ENV_NAME}" 2>/dev/null; then
+  echo ""
+else
+  MWAA_STATUS_EXIT_CODE=$?
+  if [ "${MWAA_STATUS_EXIT_CODE}" -eq 1 ]; then
+    echo "⚠️  MWAA environment is in transitional state - terraform operations may fail"
+    echo "    The script will retry with backoff if errors occur"
+    echo ""
+  fi
+fi
+
 # Run terraform apply with retry logic for state lock issues
 attempt=1
 TERRAFORM_EXIT_CODE=1
+TERRAFORM_OUTPUT_FILE=$(mktemp)
 
 while [ "${attempt}" -le "${MAX_RETRIES}" ] && [ "${TERRAFORM_EXIT_CODE}" -ne 0 ]; do
   if [ "${attempt}" -gt 1 ]; then
@@ -40,25 +55,46 @@ while [ "${attempt}" -le "${MAX_RETRIES}" ] && [ "${TERRAFORM_EXIT_CODE}" -ne 0 
     sleep "${RETRY_DELAY}"
   fi
 
-  # Run terraform apply and capture the exit code
+  # Run terraform apply and capture both output and exit code
   set +e
-  terraform -chdir="terraform/envs/${ENVIRONMENT}" apply -auto-approve
+  terraform -chdir="terraform/envs/${ENVIRONMENT}" apply -auto-approve 2>&1 | tee "${TERRAFORM_OUTPUT_FILE}"
   TERRAFORM_EXIT_CODE=$?
   set -e
 
-  # Check if error was due to state lock
+  # Check if error was due to specific retryable conditions
   if [ "${TERRAFORM_EXIT_CODE}" -ne 0 ]; then
-    # If this is a state lock error, we'll retry
-    # Otherwise, break the loop
+    # Check for MWAA transitional state errors
+    if grep -q "Environments with CREATING status must complete previous operation" "${TERRAFORM_OUTPUT_FILE}" || \
+       grep -q "Environments with UPDATING status must complete previous operation" "${TERRAFORM_OUTPUT_FILE}" || \
+       grep -q "Environments with DELETING status must complete previous operation" "${TERRAFORM_OUTPUT_FILE}"; then
+      if [ "${attempt}" -lt "${MAX_RETRIES}" ]; then
+        echo "⚠️  MWAA environment is in transitional state - will retry after environment stabilizes"
+        attempt=$((attempt + 1))
+        # Increase delay for MWAA operations as they can take several minutes
+        RETRY_DELAY=$((RETRY_DELAY * 2))
+        continue
+      fi
+    fi
+
+    # Check for resource already exists errors (should not auto-retry these)
+    if grep -q "EntityAlreadyExists" "${TERRAFORM_OUTPUT_FILE}"; then
+      echo "⚠️  Resource already exists - this may require manual intervention (import or removal)"
+      break
+    fi
+
+    # Generic retry logic for other errors
     if [ "${attempt}" -lt "${MAX_RETRIES}" ]; then
       echo "⚠️  Terraform apply failed (exit code: ${TERRAFORM_EXIT_CODE})"
-      echo "Checking if this is a state lock issue..."
+      echo "Checking if this is a retryable issue..."
       attempt=$((attempt + 1))
     else
       break
     fi
   fi
 done
+
+# Cleanup temporary file
+rm -f "${TERRAFORM_OUTPUT_FILE}"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════════"
@@ -80,6 +116,12 @@ else
   echo "    → If lock persists, another operation may be running"
   echo "    → Check lock status: make tf-check-lock ENV=${ENVIRONMENT}"
   echo "    → Force unlock (if safe): make tf-unlock ENV=${ENVIRONMENT} LOCK_ID=<id>"
+  echo ""
+  echo "  • MWAA Environment in transitional state (CREATING, UPDATING, DELETING)"
+  echo "    → The script automatically retries with exponential backoff"
+  echo "    → MWAA operations can take 20-45 minutes to complete"
+  echo "    → Wait for the environment to reach AVAILABLE or failed state"
+  echo "    → Check status: aws mwaa get-environment --name <env-name> --query 'Environment.Status'"
   echo ""
   echo "  • Resources already exist (409 EntityAlreadyExists)"
   echo "    → This may be OK if infrastructure is already deployed"
