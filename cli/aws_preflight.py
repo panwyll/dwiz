@@ -592,7 +592,11 @@ class AWSPreflight:
         failed = [r for r in results if not r.ok]
 
         if not failed:
-            print("\n✓ All permission checks passed!")
+            print("")
+            print("═══════════════════════════════════════════════════════════════════")
+            print("✅ All AWS permission checks passed")
+            print("═══════════════════════════════════════════════════════════════════")
+            print("")
             return
 
         print("\n✗ Permission checks failed:")
@@ -700,7 +704,10 @@ def run_preflight_check(verbose: bool = False, write_probes: bool = False) -> No
     Raises:
         SystemExit: If any permission checks fail
     """
-    print("Running AWS permissions preflight check...")
+    print("")
+    print("═══════════════════════════════════════════════════════════════════")
+    print("  AWS Permissions Preflight Check")
+    print("═══════════════════════════════════════════════════════════════════")
     if write_probes:
         print("(including write probes - will create and delete test resources)")
     print()

@@ -401,7 +401,7 @@ def test_print_remediation_all_passed(capsys) -> None:
     preflight.print_remediation(results)
 
     captured = capsys.readouterr()
-    assert "All permission checks passed" in captured.out
+    assert "All AWS permission checks passed" in captured.out
 
 
 def test_print_remediation_with_failures(capsys) -> None:
@@ -444,7 +444,7 @@ def test_run_preflight_check_success(capsys) -> None:
         run_preflight_check(verbose=False, write_probes=False)
 
         captured = capsys.readouterr()
-        assert "Running AWS permissions preflight check" in captured.out
+        assert "AWS Permissions Preflight Check" in captured.out
 
 
 def test_run_preflight_check_with_write_probes(capsys) -> None:

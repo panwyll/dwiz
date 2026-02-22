@@ -669,8 +669,19 @@ def cmd_up(args: argparse.Namespace) -> None:
     require_tools("terraform")
     if args.env not in TERRAFORM_ENVS:
         raise SystemExit("env must be dev or prod")
+    
+    # Track overall success
+    steps_completed = []
+    steps_failed = []
+    
     # Run preflight check
-    run_preflight_check(verbose=args.verbose, write_probes=args.preflight_write)
+    try:
+        run_preflight_check(verbose=args.verbose, write_probes=args.preflight_write)
+        steps_completed.append("AWS permissions check")
+    except SystemExit:
+        steps_failed.append("AWS permissions check")
+        raise
+    
     # Ensure terraform variables are configured
     ensure_terraform_vars(args.env)
     
@@ -685,6 +696,7 @@ def cmd_up(args: argparse.Namespace) -> None:
     try:
         extra_env = {"TF_INIT_FLAGS": tf_init_flags} if tf_init_flags else None
         run_make("tf-init", args.env, extra_env=extra_env)
+        steps_completed.append("Terraform initialization")
     except SystemExit:
         # Check if this is a backend configuration changed error
         # If so, retry with -reconfigure flag
@@ -693,27 +705,115 @@ def cmd_up(args: argparse.Namespace) -> None:
             print("\nBackend configuration changed detected. Retrying with -reconfigure flag...")
             try:
                 run_make("tf-init", args.env, extra_env={"TF_INIT_FLAGS": "-reconfigure"})
+                steps_completed.append("Terraform initialization (with reconfigure)")
             except SystemExit:
                 # If it still fails, provide helpful error message
                 print("\nTerraform initialization failed. If you need to migrate existing state,")
                 print("use: dwiz up {} --migrate-state".format(args.env))
                 print("If you want to reconfigure without migrating state,")
                 print("use: dwiz up {} --reconfigure (already attempted)".format(args.env))
+                steps_failed.append("Terraform initialization")
                 raise
         else:
+            steps_failed.append("Terraform initialization")
             raise
     
-    run_make("tf-plan", args.env)
-    run_make("tf-apply", args.env)
+    try:
+        run_make("tf-plan", args.env)
+        steps_completed.append("Terraform plan")
+    except SystemExit:
+        steps_failed.append("Terraform plan")
+        raise
+    
+    try:
+        run_make("tf-apply", args.env)
+        steps_completed.append("Terraform apply")
+    except SystemExit as e:
+        steps_failed.append("Terraform apply")
+        # Print summary even on failure
+        print("")
+        print("═══════════════════════════════════════════════════════════════════")
+        print("⚠️  Infrastructure deployment completed with errors")
+        print("═══════════════════════════════════════════════════════════════════")
+        print("")
+        print(f"Environment: {args.env}")
+        print("")
+        if steps_completed:
+            print("✅ Completed steps:")
+            for step in steps_completed:
+                print(f"   • {step}")
+            print("")
+        if steps_failed:
+            print("❌ Failed steps:")
+            for step in steps_failed:
+                print(f"   • {step}")
+            print("")
+        print("Review the errors above for details.")
+        print("")
+        raise
+    
+    # Success - print summary
+    print("")
+    print("═══════════════════════════════════════════════════════════════════")
+    print("✅ Infrastructure deployment completed successfully")
+    print("═══════════════════════════════════════════════════════════════════")
+    print("")
+    print(f"Environment: {args.env}")
+    print("")
+    print("Next steps:")
+    print(f"  • Deploy DAGs: dwiz deploy {args.env}")
+    print(f"  • View dashboard: terraform -chdir=terraform/envs/{args.env} output dashboard_url")
+    print("")
 
 
 def cmd_deploy(args: argparse.Namespace) -> None:
     require_tools("aws")
     if args.env not in TERRAFORM_ENVS:
         raise SystemExit("env must be dev or prod")
+    
+    # Track overall success
+    steps_completed = []
+    steps_failed = []
+    
     # Run preflight check
-    run_preflight_check(verbose=args.verbose, write_probes=args.preflight_write)
-    run_make("deploy", args.env)
+    try:
+        run_preflight_check(verbose=args.verbose, write_probes=args.preflight_write)
+        steps_completed.append("AWS permissions check")
+    except SystemExit:
+        steps_failed.append("AWS permissions check")
+        raise
+    
+    try:
+        run_make("deploy", args.env)
+        steps_completed.append("DAG deployment")
+    except SystemExit:
+        steps_failed.append("DAG deployment")
+        # Print summary on failure
+        print("")
+        print("═══════════════════════════════════════════════════════════════════")
+        print("❌ Deployment failed")
+        print("═══════════════════════════════════════════════════════════════════")
+        print("")
+        print(f"Environment: {args.env}")
+        print("")
+        if steps_completed:
+            print("✅ Completed steps:")
+            for step in steps_completed:
+                print(f"   • {step}")
+            print("")
+        if steps_failed:
+            print("❌ Failed steps:")
+            for step in steps_failed:
+                print(f"   • {step}")
+            print("")
+        print("Review the errors above for details.")
+        print("")
+        raise
+    
+    # Success - already printed by deploy_dags.sh, but add note
+    print("To view your MWAA environment:")
+    print(f"  terraform -chdir=terraform/envs/{args.env} output mwaa_webserver_url")
+    print("")
 
 
 def cmd_new_source(args: argparse.Namespace) -> None:
