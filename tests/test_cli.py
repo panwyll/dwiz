@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from cli.wizard import (
+from cli.dwiz import (
     build_parser,
     cmd_bootstrap,
     get_aws_account_id,
@@ -43,8 +43,8 @@ def test_bootstrap_missing_bucket_exits() -> None:
 
 def test_bootstrap_us_east_1_uses_s3_mb(capsys) -> None:
     args = _bootstrap_args(region="us-east-1")
-    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
-        "cli.wizard.check_aws_credentials"
+    with patch("cli.dwiz.require_tools"), patch("cli.dwiz.boto3") as mock_boto3, patch(
+        "cli.dwiz.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -71,8 +71,8 @@ def test_bootstrap_us_east_1_uses_s3_mb(capsys) -> None:
 
 def test_bootstrap_other_region_uses_create_bucket() -> None:
     args = _bootstrap_args(region="eu-west-1")
-    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
-        "cli.wizard.check_aws_credentials"
+    with patch("cli.dwiz.require_tools"), patch("cli.dwiz.boto3") as mock_boto3, patch(
+        "cli.dwiz.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -97,8 +97,8 @@ def test_bootstrap_other_region_uses_create_bucket() -> None:
 
 def test_bootstrap_enables_versioning() -> None:
     args = _bootstrap_args()
-    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
-        "cli.wizard.check_aws_credentials"
+    with patch("cli.dwiz.require_tools"), patch("cli.dwiz.boto3") as mock_boto3, patch(
+        "cli.dwiz.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -121,8 +121,8 @@ def test_bootstrap_enables_versioning() -> None:
 
 def test_bootstrap_creates_dynamodb_table() -> None:
     args = _bootstrap_args()
-    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
-        "cli.wizard.check_aws_credentials"
+    with patch("cli.dwiz.require_tools"), patch("cli.dwiz.boto3") as mock_boto3, patch(
+        "cli.dwiz.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -145,8 +145,8 @@ def test_bootstrap_creates_dynamodb_table() -> None:
 
 def test_bootstrap_skips_bucket_creation_when_exists(capsys) -> None:
     args = _bootstrap_args()
-    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
-        "cli.wizard.check_aws_credentials"
+    with patch("cli.dwiz.require_tools"), patch("cli.dwiz.boto3") as mock_boto3, patch(
+        "cli.dwiz.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -168,8 +168,8 @@ def test_bootstrap_skips_bucket_creation_when_exists(capsys) -> None:
 
 def test_bootstrap_prints_backend_config(capsys) -> None:
     args = _bootstrap_args(bucket="my-bucket", table="my-table", region="us-east-1")
-    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
-        "cli.wizard.check_aws_credentials"
+    with patch("cli.dwiz.require_tools"), patch("cli.dwiz.boto3") as mock_boto3, patch(
+        "cli.dwiz.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -193,51 +193,51 @@ def test_bootstrap_prints_backend_config(capsys) -> None:
 
 
 def test_get_aws_account_id_success() -> None:
-    with patch("cli.wizard.get_caller_identity") as mock_identity:
+    with patch("cli.dwiz.get_caller_identity") as mock_identity:
         mock_identity.return_value = ("123456789012", "arn:aws:iam::123456789012:user/test")
         account_id = get_aws_account_id()
         assert account_id == "123456789012"
 
 
 def test_get_aws_account_id_failure() -> None:
-    with patch("cli.wizard.get_caller_identity") as mock_identity:
+    with patch("cli.dwiz.get_caller_identity") as mock_identity:
         mock_identity.return_value = (None, None)
         account_id = get_aws_account_id()
         assert account_id is None
 
 
 def test_validate_resource_names_detects_placeholder_bucket() -> None:
-    with patch("cli.wizard.get_caller_identity") as mock_identity:
+    with patch("cli.dwiz.get_caller_identity") as mock_identity:
         mock_identity.return_value = (None, None)
         with pytest.raises(SystemExit) as exc_info:
-            validate_resource_names("YOUR_ORG-wizard-tf-state", "my-lock")
+            validate_resource_names("YOUR_ORG-dwiz-tf-state", "my-lock")
         assert "Placeholder values detected" in str(exc_info.value)
-        assert "YOUR_ORG-wizard-tf-state" in str(exc_info.value)
+        assert "YOUR_ORG-dwiz-tf-state" in str(exc_info.value)
 
 
 def test_validate_resource_names_detects_placeholder_table() -> None:
-    with patch("cli.wizard.get_caller_identity") as mock_identity:
+    with patch("cli.dwiz.get_caller_identity") as mock_identity:
         mock_identity.return_value = (None, None)
         with pytest.raises(SystemExit) as exc_info:
-            validate_resource_names("my-bucket", "YOUR_ORG-wizard-tf-lock")
+            validate_resource_names("my-bucket", "YOUR_ORG-dwiz-tf-lock")
         assert "Placeholder values detected" in str(exc_info.value)
-        assert "YOUR_ORG-wizard-tf-lock" in str(exc_info.value)
+        assert "YOUR_ORG-dwiz-tf-lock" in str(exc_info.value)
 
 
 def test_validate_resource_names_provides_suggestion_with_account_id() -> None:
-    with patch("cli.wizard.get_caller_identity") as mock_identity:
+    with patch("cli.dwiz.get_caller_identity") as mock_identity:
         mock_identity.return_value = ("123456789012", "arn:aws:iam::123456789012:user/test")
         with pytest.raises(SystemExit) as exc_info:
-            validate_resource_names("YOUR_ORG-wizard-tf-state", "YOUR_ORG-wizard-tf-lock")
+            validate_resource_names("YOUR_ORG-dwiz-tf-state", "YOUR_ORG-dwiz-tf-lock")
         error_msg = str(exc_info.value)
         assert "Your AWS Account ID: 123456789012" in error_msg
-        assert "123456789012-wizard-tf-state" in error_msg
-        assert "123456789012-wizard-tf-lock" in error_msg
+        assert "123456789012-dwiz-tf-state" in error_msg
+        assert "123456789012-dwiz-tf-lock" in error_msg
 
 
 def test_validate_resource_names_handles_all_placeholder_patterns() -> None:
     """Test that all placeholder patterns are replaced in suggestions."""
-    with patch("cli.wizard.get_caller_identity") as mock_identity:
+    with patch("cli.dwiz.get_caller_identity") as mock_identity:
         mock_identity.return_value = ("987654321098", "arn:aws:iam::987654321098:user/test")
         # Test YOUR_ACCOUNT pattern
         with pytest.raises(SystemExit) as exc_info:
@@ -249,10 +249,10 @@ def test_validate_resource_names_handles_all_placeholder_patterns() -> None:
 
 
 def test_validate_resource_names_provides_help_without_account_id() -> None:
-    with patch("cli.wizard.get_caller_identity") as mock_identity:
+    with patch("cli.dwiz.get_caller_identity") as mock_identity:
         mock_identity.return_value = (None, None)
         with pytest.raises(SystemExit) as exc_info:
-            validate_resource_names("YOUR-ORG-wizard-tf-state", "my-lock")
+            validate_resource_names("YOUR-ORG-dwiz-tf-state", "my-lock")
         error_msg = str(exc_info.value)
         assert "aws sts get-caller-identity" in error_msg
         assert "console.aws.amazon.com" in error_msg
@@ -290,10 +290,10 @@ def test_validate_resource_names_valid_names() -> None:
 
 
 def test_bootstrap_validates_names_before_creating() -> None:
-    args = _bootstrap_args(bucket="YOUR_ORG-wizard-tf-state", table="my-lock")
-    with patch("cli.wizard.require_tools"), patch(
-        "cli.wizard.get_caller_identity"
-    ) as mock_identity, patch("cli.wizard.check_aws_credentials") as mock_check_creds:
+    args = _bootstrap_args(bucket="YOUR_ORG-dwiz-tf-state", table="my-lock")
+    with patch("cli.dwiz.require_tools"), patch(
+        "cli.dwiz.get_caller_identity"
+    ) as mock_identity, patch("cli.dwiz.check_aws_credentials") as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_identity.return_value = (None, None)
         with pytest.raises(SystemExit) as exc_info:
@@ -304,8 +304,8 @@ def test_bootstrap_validates_names_before_creating() -> None:
 def test_bootstrap_handles_s3_permission_error(capsys) -> None:
     """Test bootstrap provides helpful suggestions when S3 CreateBucket fails with AccessDenied."""
     args = _bootstrap_args()
-    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
-        "cli.wizard.check_aws_credentials"
+    with patch("cli.dwiz.require_tools"), patch("cli.dwiz.boto3") as mock_boto3, patch(
+        "cli.dwiz.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -333,7 +333,7 @@ def test_bootstrap_handles_s3_permission_error(capsys) -> None:
             mock_s3 if service == "s3" else mock_dynamodb
         )
 
-        with patch("cli.wizard.get_caller_identity") as mock_identity:
+        with patch("cli.dwiz.get_caller_identity") as mock_identity:
             mock_identity.return_value = ("903783614598", "arn:aws:iam::903783614598:user/dwiz")
 
             with pytest.raises(SystemExit):
@@ -350,8 +350,8 @@ def test_bootstrap_handles_s3_permission_error(capsys) -> None:
 def test_bootstrap_handles_dynamodb_permission_error(capsys) -> None:
     """Test bootstrap provides helpful suggestions when DynamoDB CreateTable fails."""
     args = _bootstrap_args()
-    with patch("cli.wizard.require_tools"), patch("cli.wizard.boto3") as mock_boto3, patch(
-        "cli.wizard.check_aws_credentials"
+    with patch("cli.dwiz.require_tools"), patch("cli.dwiz.boto3") as mock_boto3, patch(
+        "cli.dwiz.check_aws_credentials"
     ) as mock_check_creds:
         mock_check_creds.return_value = (True, "✓ Using default AWS credentials")
         mock_s3 = MagicMock()
@@ -382,7 +382,7 @@ def test_bootstrap_handles_dynamodb_permission_error(capsys) -> None:
             mock_s3 if service == "s3" else mock_dynamodb
         )
 
-        with patch("cli.wizard.get_caller_identity") as mock_identity:
+        with patch("cli.dwiz.get_caller_identity") as mock_identity:
             mock_identity.return_value = ("123456789012", "arn:aws:iam::123456789012:user/test")
 
             with pytest.raises(SystemExit):
@@ -399,7 +399,7 @@ def test_bootstrap_checks_credentials_first(capsys) -> None:
     from botocore.exceptions import NoCredentialsError
 
     args = _bootstrap_args()
-    with patch("cli.wizard.require_tools"), patch.dict(
+    with patch("cli.dwiz.require_tools"), patch.dict(
         "os.environ", {}, clear=True
     ), patch("boto3.Session") as mock_session_class:
         mock_session = MagicMock()
@@ -425,9 +425,9 @@ def test_bootstrap_with_sso_profile(capsys) -> None:
         "Arn": "arn:aws:sts::123456789012:assumed-role/MySSORole/session",
     }
 
-    with patch("cli.wizard.require_tools"), patch.dict(
+    with patch("cli.dwiz.require_tools"), patch.dict(
         "os.environ", {"AWS_PROFILE": "my-sso-profile"}
-    ), patch("boto3.Session") as mock_session_class, patch("cli.wizard.boto3") as mock_boto3:
+    ), patch("boto3.Session") as mock_session_class, patch("cli.dwiz.boto3") as mock_boto3:
         # Mock credential check
         mock_session = MagicMock()
         mock_sts = MagicMock()
@@ -453,18 +453,18 @@ def test_bootstrap_with_sso_profile(capsys) -> None:
 
 def test_get_stored_account_id_returns_none_when_not_exists(tmp_path) -> None:
     """Test that get_stored_account_id returns None when config doesn't exist."""
-    from cli.wizard import get_stored_account_id
+    from cli.dwiz import get_stored_account_id
 
-    with patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"):
+    with patch("cli.dwiz.DWIZ_CONFIG_DIR", tmp_path / ".dwiz"):
         account_id = get_stored_account_id()
         assert account_id is None
 
 
 def test_store_and_get_account_id(tmp_path) -> None:
     """Test that store_account_id and get_stored_account_id work together."""
-    from cli.wizard import get_stored_account_id, store_account_id
+    from cli.dwiz import get_stored_account_id, store_account_id
 
-    with patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"):
+    with patch("cli.dwiz.DWIZ_CONFIG_DIR", tmp_path / ".dwiz"):
         # Store account ID
         store_account_id("123456789012")
 
@@ -475,10 +475,10 @@ def test_store_and_get_account_id(tmp_path) -> None:
 
 def test_get_or_prompt_account_id_from_aws_credentials() -> None:
     """Test that get_or_prompt_account_id uses AWS credentials when available."""
-    from cli.wizard import get_or_prompt_account_id
+    from cli.dwiz import get_or_prompt_account_id
     
-    with patch("cli.wizard.get_aws_account_id") as mock_get_account, \
-         patch("cli.wizard.store_account_id") as mock_store:
+    with patch("cli.dwiz.get_aws_account_id") as mock_get_account, \
+         patch("cli.dwiz.store_account_id") as mock_store:
         mock_get_account.return_value = "987654321098"
         
         account_id = get_or_prompt_account_id()
@@ -489,13 +489,13 @@ def test_get_or_prompt_account_id_from_aws_credentials() -> None:
 
 def test_get_or_prompt_account_id_from_stored_value(tmp_path, monkeypatch) -> None:
     """Test that get_or_prompt_account_id uses stored value when AWS creds unavailable."""
-    from cli.wizard import get_or_prompt_account_id
+    from cli.dwiz import get_or_prompt_account_id
 
     # Simulate no AWS credentials
     with (
-        patch("cli.wizard.get_aws_account_id") as mock_get_account,
-        patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"),
-        patch("cli.wizard.get_stored_account_id") as mock_get_stored,
+        patch("cli.dwiz.get_aws_account_id") as mock_get_account,
+        patch("cli.dwiz.DWIZ_CONFIG_DIR", tmp_path / ".dwiz"),
+        patch("cli.dwiz.get_stored_account_id") as mock_get_stored,
         patch("builtins.input") as mock_input,
     ):
         mock_get_account.return_value = None
@@ -509,13 +509,13 @@ def test_get_or_prompt_account_id_from_stored_value(tmp_path, monkeypatch) -> No
 
 def test_get_or_prompt_account_id_prompts_user(tmp_path, monkeypatch) -> None:
     """Test that get_or_prompt_account_id prompts user when no stored value."""
-    from cli.wizard import get_or_prompt_account_id
+    from cli.dwiz import get_or_prompt_account_id
 
     with (
-        patch("cli.wizard.get_aws_account_id") as mock_get_account,
-        patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"),
-        patch("cli.wizard.get_stored_account_id") as mock_get_stored,
-        patch("cli.wizard.store_account_id") as mock_store,
+        patch("cli.dwiz.get_aws_account_id") as mock_get_account,
+        patch("cli.dwiz.DWIZ_CONFIG_DIR", tmp_path / ".dwiz"),
+        patch("cli.dwiz.get_stored_account_id") as mock_get_stored,
+        patch("cli.dwiz.store_account_id") as mock_store,
         patch("builtins.input") as mock_input,
     ):
         mock_get_account.return_value = None
@@ -530,13 +530,13 @@ def test_get_or_prompt_account_id_prompts_user(tmp_path, monkeypatch) -> None:
 
 def test_get_or_prompt_account_id_validates_input(tmp_path) -> None:
     """Test that get_or_prompt_account_id validates account ID format."""
-    from cli.wizard import get_or_prompt_account_id
+    from cli.dwiz import get_or_prompt_account_id
 
     with (
-        patch("cli.wizard.get_aws_account_id") as mock_get_account,
-        patch("cli.wizard.WIZARD_CONFIG_DIR", tmp_path / ".wizard"),
-        patch("cli.wizard.get_stored_account_id") as mock_get_stored,
-        patch("cli.wizard.store_account_id"),
+        patch("cli.dwiz.get_aws_account_id") as mock_get_account,
+        patch("cli.dwiz.DWIZ_CONFIG_DIR", tmp_path / ".dwiz"),
+        patch("cli.dwiz.get_stored_account_id") as mock_get_stored,
+        patch("cli.dwiz.store_account_id"),
         patch("builtins.input") as mock_input,
     ):
         mock_get_account.return_value = None
@@ -552,15 +552,15 @@ def test_get_or_prompt_account_id_validates_input(tmp_path) -> None:
 
 def test_ensure_terraform_vars_creates_tfvars(tmp_path) -> None:
     """Test that ensure_terraform_vars creates terraform.tfvars file."""
-    from cli.wizard import ensure_terraform_vars
+    from cli.dwiz import ensure_terraform_vars
 
     # Create mock environment directory
     env_dir = tmp_path / "terraform" / "envs" / "dev"
     env_dir.mkdir(parents=True)
 
     with (
-        patch("cli.wizard.REPO_ROOT", tmp_path),
-        patch("cli.wizard.get_or_prompt_account_id") as mock_get_account,
+        patch("cli.dwiz.REPO_ROOT", tmp_path),
+        patch("cli.dwiz.get_or_prompt_account_id") as mock_get_account,
     ):
         mock_get_account.return_value = "333333333333"
 
@@ -576,7 +576,7 @@ def test_ensure_terraform_vars_creates_tfvars(tmp_path) -> None:
 
 def test_ensure_terraform_vars_updates_existing_tfvars(tmp_path) -> None:
     """Test that ensure_terraform_vars updates existing terraform.tfvars."""
-    from cli.wizard import ensure_terraform_vars
+    from cli.dwiz import ensure_terraform_vars
 
     # Create mock environment directory
     env_dir = tmp_path / "terraform" / "envs" / "dev"
@@ -587,8 +587,8 @@ def test_ensure_terraform_vars_updates_existing_tfvars(tmp_path) -> None:
     tfvars_file.write_text('repo = "old/repo"\nregion = "us-west-2"\n')
 
     with (
-        patch("cli.wizard.REPO_ROOT", tmp_path),
-        patch("cli.wizard.get_or_prompt_account_id") as mock_get_account,
+        patch("cli.dwiz.REPO_ROOT", tmp_path),
+        patch("cli.dwiz.get_or_prompt_account_id") as mock_get_account,
     ):
         mock_get_account.return_value = "444444444444"
 
@@ -665,16 +665,16 @@ def test_get_github_repo_from_remote_error() -> None:
 
 def test_ensure_terraform_vars_with_detected_repo(tmp_path, capsys) -> None:
     """Test that ensure_terraform_vars uses detected GitHub repo."""
-    from cli.wizard import ensure_terraform_vars
+    from cli.dwiz import ensure_terraform_vars
 
     # Create mock environment directory
     env_dir = tmp_path / "terraform" / "envs" / "dev"
     env_dir.mkdir(parents=True)
 
     with (
-        patch("cli.wizard.REPO_ROOT", tmp_path),
-        patch("cli.wizard.get_or_prompt_account_id") as mock_get_account,
-        patch("cli.wizard.get_github_repo_from_remote") as mock_get_repo,
+        patch("cli.dwiz.REPO_ROOT", tmp_path),
+        patch("cli.dwiz.get_or_prompt_account_id") as mock_get_account,
+        patch("cli.dwiz.get_github_repo_from_remote") as mock_get_repo,
     ):
         mock_get_account.return_value = "555555555555"
         mock_get_repo.return_value = "myorg/myproject"
@@ -700,16 +700,16 @@ def test_ensure_terraform_vars_with_detected_repo(tmp_path, capsys) -> None:
 
 def test_ensure_terraform_vars_fallback_repo(tmp_path, capsys) -> None:
     """Test that ensure_terraform_vars falls back to default repo when detection fails."""
-    from cli.wizard import ensure_terraform_vars
+    from cli.dwiz import ensure_terraform_vars
 
     # Create mock environment directory
     env_dir = tmp_path / "terraform" / "envs" / "dev"
     env_dir.mkdir(parents=True)
 
     with (
-        patch("cli.wizard.REPO_ROOT", tmp_path),
-        patch("cli.wizard.get_or_prompt_account_id") as mock_get_account,
-        patch("cli.wizard.get_github_repo_from_remote") as mock_get_repo,
+        patch("cli.dwiz.REPO_ROOT", tmp_path),
+        patch("cli.dwiz.get_or_prompt_account_id") as mock_get_account,
+        patch("cli.dwiz.get_github_repo_from_remote") as mock_get_repo,
     ):
         mock_get_account.return_value = "666666666666"
         mock_get_repo.return_value = None  # Detection failed

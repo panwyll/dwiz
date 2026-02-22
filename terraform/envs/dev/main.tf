@@ -18,7 +18,7 @@ locals {
 
 module "network" {
   source          = "../../modules/network"
-  name            = "wizard-dev"
+  name            = "dwiz-dev"
   environment     = local.env
   cidr            = "10.10.0.0/16"
   public_subnets  = ["10.10.1.0/24", "10.10.2.0/24"]

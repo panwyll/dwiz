@@ -10,5 +10,5 @@ __pycache__/
 *.tfstate.backup
 terraform.tfvars
 
-# Wizard config (stores account ID and other local config)
-.wizard/
+# Dwiz config (stores account ID and other local config)
+.dwiz/

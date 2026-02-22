@@ -1,0 +1,14 @@
+project: dwiz
+region: us-east-1
+account_id: "123456789012"
+state_bucket: org-dwiz-tf-state
+state_lock_table: org-dwiz-tf-lock
+mwaa:
+  environment: dwiz-dev
+  airflow_version: "2.7.2"
+  dag_s3_path: dags
+s3_lake:
+  raw_bucket: dwiz-raw-dev
+  curated_bucket: dwiz-curated-dev
+observability:
+  log_retention_days: 14

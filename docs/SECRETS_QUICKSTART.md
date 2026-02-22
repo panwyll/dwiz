@@ -7,7 +7,7 @@ This guide will help you get started with secure secrets management in just a fe
 After deploying your environment (dev or prod), the secrets infrastructure is automatically created:
 
 ```bash
-wizard up dev
+dwiz up dev
 ```
 
 This creates:
@@ -21,13 +21,13 @@ Use AWS CLI to store a secret:
 ```bash
 # Store API keys
 aws secretsmanager put-secret-value \
-  --secret-id wizard-dev/api-keys \
+  --secret-id dwiz-dev/api-keys \
   --secret-string '{"github_token":"ghp_xxxxx","slack_webhook":"https://hooks.slack.com/xxxxx"}'
 ```
 
 Or use the AWS Console:
 1. Go to AWS Secrets Manager
-2. Find secret: `wizard-dev/api-keys`
+2. Find secret: `dwiz-dev/api-keys`
 3. Click "Retrieve secret value" → "Edit"
 4. Add key-value pairs
 5. Save
@@ -41,7 +41,7 @@ from libs.python_common.secrets import get_secret_value
 
 def my_task():
     # Retrieve secret securely
-    api_key = get_secret_value("wizard-dev/api-keys", "github_token")
+    api_key = get_secret_value("dwiz-dev/api-keys", "github_token")
     
     # Use the API key
     # headers = {"Authorization": f"token {api_key}"}
@@ -60,7 +60,7 @@ Verify you can retrieve secrets (requires AWS credentials):
 from libs.python_common.secrets import get_secret
 
 # Test retrieval
-secret = get_secret("wizard-dev/api-keys")
+secret = get_secret("dwiz-dev/api-keys")
 print(secret.keys())  # Shows available keys
 ```
 
@@ -109,7 +109,7 @@ print(secret.keys())  # Shows available keys
 - Ensure Terraform has been applied
 
 **Access denied error?**
-- Run `wizard up dev` to update IAM permissions
-- Verify secret name follows pattern: `wizard-<env>/*`
+- Run `dwiz up dev` to update IAM permissions
+- Verify secret name follows pattern: `dwiz-<env>/*`
 
 For more help, see the full [Secrets Management Guide](./SECRETS_MANAGEMENT.md).
