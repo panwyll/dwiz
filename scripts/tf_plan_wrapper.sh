@@ -68,7 +68,7 @@ if [ "${TERRAFORM_EXIT_CODE}" -eq 0 ]; then
   echo "═══════════════════════════════════════════════════════════════════"
   exit 0
 else
-  echo "❌ Terraform plan failed after ${attempt} attempts"
+  echo "❌ Terraform plan failed after ${MAX_RETRIES} attempts"
   echo "═══════════════════════════════════════════════════════════════════"
   echo ""
   echo "Common causes and solutions:"
