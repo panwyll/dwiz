@@ -804,6 +804,16 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     print("")
 
 
+def cmd_unlock(args: argparse.Namespace) -> None:
+    """Force unlock Terraform state lock."""
+    require_tools("terraform")
+    if args.env not in TERRAFORM_ENVS:
+        raise SystemExit("env must be dev, prod, or test")
+    
+    # Run the unlock script
+    run_make("tf-unlock", args.env, extra_env={"LOCK_ID": args.lock_id or ""})
+
+
 def cmd_new_source(args: argparse.Namespace) -> None:
     source_dir = REPO_ROOT / "pipelines" / "sources"
     source_dir.mkdir(parents=True, exist_ok=True)
@@ -1016,6 +1026,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run write probes (create/delete test resources)",
     )
     deploy_parser.set_defaults(func=cmd_deploy)
+
+    unlock_parser = sub.add_parser(
+        "unlock",
+        help="Force unlock Terraform state lock (use when previous operation was interrupted)",
+    )
+    unlock_parser.add_argument(
+        "env",
+        choices=["dev", "prod", "test"],
+        help="Environment to unlock (dev, prod, or test)",
+    )
+    unlock_parser.add_argument(
+        "--lock-id",
+        help="Lock ID to release (will be prompted if not provided)",
+    )
+    unlock_parser.set_defaults(func=cmd_unlock)
 
     new_source = sub.add_parser("new-source", help="Create source scaffold")
     new_source.add_argument("name")

@@ -1,6 +1,6 @@
 PYTHON := python3
 
-.PHONY: install lint test format dag-validate tf-init tf-plan tf-apply tf-destroy tf-fmt build deploy
+.PHONY: install lint test format dag-validate tf-init tf-plan tf-apply tf-destroy tf-unlock tf-fmt build deploy
 
 install:
 	$(PYTHON) -m pip install -e .
@@ -30,6 +30,9 @@ tf-apply:
 
 tf-destroy:
 	terraform -chdir=terraform/envs/$(ENV) destroy -auto-approve
+
+tf-unlock:
+	./scripts/tf_force_unlock.sh $(ENV) $(LOCK_ID)
 
 tf-fmt:
 	terraform fmt -recursive

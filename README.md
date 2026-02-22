@@ -75,6 +75,34 @@ dwiz deploy prod
 
 For GitHub Actions, push a tag `v*` to run the prod workflow.
 
+## Troubleshooting
+
+### Terraform State Lock
+
+If a Terraform operation was interrupted (e.g., you pressed Ctrl+C), the state lock may not be released. You'll see an error like:
+
+```
+Error: Error acquiring the state lock
+Error message: ConditionalCheckFailedException: The conditional request failed
+Lock Info:
+  ID:        bbfc73fb-7f79-0d42-2239-0f2ba22ec62d
+  ...
+```
+
+To fix this, use the unlock command with the Lock ID from the error message:
+
+```bash
+# Using dwiz CLI (recommended)
+dwiz unlock dev --lock-id bbfc73fb-7f79-0d42-2239-0f2ba22ec62d
+
+# Or using make directly
+make tf-unlock ENV=dev LOCK_ID=bbfc73fb-7f79-0d42-2239-0f2ba22ec62d
+```
+
+If you don't provide the lock ID, you'll be prompted to enter it interactively.
+
+**Warning:** Only use this command if you're sure no Terraform operations are currently running. Force unlocking while another process is running can lead to state corruption.
+
 ## Adding pipelines
 
 - `dags/templates/stream_compaction.py` and `dags/templates/batch_api_ingest.py` show recommended structure.
