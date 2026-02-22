@@ -728,7 +728,7 @@ def cmd_up(args: argparse.Namespace) -> None:
     try:
         run_make("tf-apply", args.env)
         steps_completed.append("Terraform apply")
-    except SystemExit as e:
+    except SystemExit:
         steps_failed.append("Terraform apply")
         # Print summary even on failure
         print("")
