@@ -44,21 +44,9 @@ def run_make(
         cwd=REPO_ROOT,
         env=env_vars,
         check=False,
-        capture_output=True,
-        text=True,
     )
     if result.returncode != 0:
-        # Print captured output before exiting
-        if result.stdout:
-            print(result.stdout, end="")
-        if result.stderr:
-            print(result.stderr, end="")
         raise SystemExit(result.returncode)
-    # Print captured output on success too
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="")
     return result
 
 
