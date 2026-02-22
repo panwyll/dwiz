@@ -31,13 +31,35 @@ def require_tools(*tools: str) -> None:
         raise SystemExit(f"Missing required tools: {', '.join(missing)}")
 
 
-def run_make(target: str, env: str | None = None) -> None:
+def run_make(
+    target: str, env: str | None = None, extra_env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
     env_vars = os.environ.copy()
     if env:
         env_vars["ENV"] = env
-    result = subprocess.run(["make", target], cwd=REPO_ROOT, env=env_vars, check=False)
+    if extra_env:
+        env_vars.update(extra_env)
+    result = subprocess.run(
+        ["make", target],
+        cwd=REPO_ROOT,
+        env=env_vars,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
     if result.returncode != 0:
+        # Print captured output before exiting
+        if result.stdout:
+            print(result.stdout, end="")
+        if result.stderr:
+            print(result.stderr, end="")
         raise SystemExit(result.returncode)
+    # Print captured output on success too
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="")
+    return result
 
 
 def get_caller_identity() -> tuple[str | None, str | None]:
@@ -651,7 +673,36 @@ def cmd_up(args: argparse.Namespace) -> None:
     run_preflight_check(verbose=args.verbose, write_probes=args.preflight_write)
     # Ensure terraform variables are configured
     ensure_terraform_vars(args.env)
-    run_make("tf-init", args.env)
+    
+    # Determine terraform init flags
+    tf_init_flags = ""
+    if hasattr(args, "migrate_state") and args.migrate_state:
+        tf_init_flags = "-migrate-state"
+    elif hasattr(args, "reconfigure") and args.reconfigure:
+        tf_init_flags = "-reconfigure"
+    
+    # Try to run terraform init
+    try:
+        extra_env = {"TF_INIT_FLAGS": tf_init_flags} if tf_init_flags else None
+        run_make("tf-init", args.env, extra_env=extra_env)
+    except SystemExit as e:
+        # Check if this is a backend configuration changed error
+        # If so, retry with -reconfigure flag
+        if e.code != 0 and not tf_init_flags:
+            # Run terraform init with -reconfigure to handle backend changes
+            print("\nBackend configuration changed detected. Retrying with -reconfigure flag...")
+            try:
+                run_make("tf-init", args.env, extra_env={"TF_INIT_FLAGS": "-reconfigure"})
+            except SystemExit:
+                # If it still fails, provide helpful error message
+                print("\nTerraform initialization failed. If you need to migrate existing state,")
+                print("use: dwiz up {} --migrate-state".format(args.env))
+                print("If you want to reconfigure without migrating state,")
+                print("use: dwiz up {} --reconfigure (already attempted)".format(args.env))
+                raise
+        else:
+            raise
+    
     run_make("tf-plan", args.env)
     run_make("tf-apply", args.env)
 
@@ -853,6 +904,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--preflight-write",
         action="store_true",
         help="Run write probes (create/delete test resources)",
+    )
+    up_parser.add_argument(
+        "--reconfigure",
+        action="store_true",
+        help="Reconfigure backend without migrating state (useful when backend config changes)",
+    )
+    up_parser.add_argument(
+        "--migrate-state",
+        action="store_true",
+        help="Migrate existing state when backend config changes",
     )
     up_parser.set_defaults(func=cmd_up)
 

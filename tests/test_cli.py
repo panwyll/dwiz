@@ -726,3 +726,143 @@ def test_ensure_terraform_vars_fallback_repo(tmp_path, capsys) -> None:
         # Check output messages
         out = capsys.readouterr().out
         assert "Could not detect GitHub repository from git remote" in out
+
+
+def test_up_parser_has_reconfigure_flag() -> None:
+    """Test that up command has --reconfigure flag."""
+    parser = build_parser()
+    args = parser.parse_args(["up", "dev", "--reconfigure"])
+    assert args.env == "dev"
+    assert args.reconfigure is True
+    assert hasattr(args, "migrate_state")
+    assert args.migrate_state is False
+
+
+def test_up_parser_has_migrate_state_flag() -> None:
+    """Test that up command has --migrate-state flag."""
+    parser = build_parser()
+    args = parser.parse_args(["up", "dev", "--migrate-state"])
+    assert args.env == "dev"
+    assert args.migrate_state is True
+    assert hasattr(args, "reconfigure")
+    assert args.reconfigure is False
+
+
+def test_up_parser_default_flags() -> None:
+    """Test that up command defaults have both flags as False."""
+    parser = build_parser()
+    args = parser.parse_args(["up", "dev"])
+    assert args.env == "dev"
+    assert args.reconfigure is False
+    assert args.migrate_state is False
+
+
+
+def test_cmd_up_with_reconfigure_flag() -> None:
+    """Test that cmd_up passes reconfigure flag to terraform init."""
+    from cli.dwiz import cmd_up
+    
+    args = argparse.Namespace(
+        env="dev",
+        verbose=False,
+        preflight_write=False,
+        reconfigure=True,
+        migrate_state=False,
+    )
+    
+    with (
+        patch("cli.dwiz.require_tools"),
+        patch("cli.dwiz.run_preflight_check"),
+        patch("cli.dwiz.ensure_terraform_vars"),
+        patch("cli.dwiz.run_make") as mock_run_make,
+    ):
+        # Simulate successful terraform init with reconfigure
+        mock_run_make.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        
+        cmd_up(args)
+        
+        # Verify tf-init was called with TF_INIT_FLAGS containing -reconfigure
+        tf_init_call = [call for call in mock_run_make.call_args_list if call[0][0] == "tf-init"][0]
+        assert tf_init_call[1]["extra_env"] == {"TF_INIT_FLAGS": "-reconfigure"}
+
+
+def test_cmd_up_with_migrate_state_flag() -> None:
+    """Test that cmd_up passes migrate-state flag to terraform init."""
+    from cli.dwiz import cmd_up
+    
+    args = argparse.Namespace(
+        env="dev",
+        verbose=False,
+        preflight_write=False,
+        reconfigure=False,
+        migrate_state=True,
+    )
+    
+    with (
+        patch("cli.dwiz.require_tools"),
+        patch("cli.dwiz.run_preflight_check"),
+        patch("cli.dwiz.ensure_terraform_vars"),
+        patch("cli.dwiz.run_make") as mock_run_make,
+    ):
+        # Simulate successful terraform init with migrate-state
+        mock_run_make.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        
+        cmd_up(args)
+        
+        # Verify tf-init was called with TF_INIT_FLAGS containing -migrate-state
+        tf_init_call = [call for call in mock_run_make.call_args_list if call[0][0] == "tf-init"][0]
+        assert tf_init_call[1]["extra_env"] == {"TF_INIT_FLAGS": "-migrate-state"}
+
+
+def test_cmd_up_auto_retries_with_reconfigure_on_backend_error(capsys) -> None:
+    """Test that cmd_up automatically retries with -reconfigure when backend config changes."""
+    from cli.dwiz import cmd_up
+    
+    args = argparse.Namespace(
+        env="dev",
+        verbose=False,
+        preflight_write=False,
+        reconfigure=False,
+        migrate_state=False,
+    )
+    
+    with (
+        patch("cli.dwiz.require_tools"),
+        patch("cli.dwiz.run_preflight_check"),
+        patch("cli.dwiz.ensure_terraform_vars"),
+        patch("cli.dwiz.run_make") as mock_run_make,
+    ):
+        # First call to tf-init fails (backend config changed)
+        # Second call succeeds (with -reconfigure)
+        call_count = [0]
+        
+        def run_make_side_effect(target, env=None, extra_env=None):
+            if target == "tf-init":
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    # First attempt without flags fails
+                    raise SystemExit(1)
+                # Second attempt with -reconfigure succeeds
+                return MagicMock(returncode=0, stdout="", stderr="")
+            return MagicMock(returncode=0, stdout="", stderr="")
+        
+        mock_run_make.side_effect = run_make_side_effect
+        
+        cmd_up(args)
+        
+        # Verify tf-init was called twice
+        tf_init_calls = [call for call in mock_run_make.call_args_list if call[0][0] == "tf-init"]
+        assert len(tf_init_calls) == 2
+        
+        # First call should have no flags
+        first_call = tf_init_calls[0]
+        assert first_call[1].get("extra_env") is None
+        
+        # Second call should have -reconfigure flag
+        second_call = tf_init_calls[1]
+        assert second_call[1]["extra_env"] == {"TF_INIT_FLAGS": "-reconfigure"}
+        
+        # Check that retry message was printed
+        out = capsys.readouterr().out
+        assert "Backend configuration changed detected" in out
+        assert "Retrying with -reconfigure flag" in out
