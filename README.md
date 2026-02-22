@@ -1,6 +1,6 @@
-# Data Platform Wizard v1
+# Data Platform Dwiz v1
 
-Data Platform Wizard provides a minimal, Terraform-first AWS data platform with Airflow (MWAA), S3 data lake, optional ECS jobs, and streaming ingest via Kinesis Firehose. This repository ships with example DAGs and a CLI to manage deployments.
+Data Platform Dwiz provides a minimal, Terraform-first AWS data platform with Airflow (MWAA), S3 data lake, optional ECS jobs, and streaming ingest via Kinesis Firehose. This repository ships with example DAGs and a CLI to manage deployments.
 
 ## Prerequisites
 
@@ -15,53 +15,53 @@ Data Platform Wizard provides a minimal, Terraform-first AWS data platform with 
 make install
 ```
 
-This installs the `wizard` CLI so you can run `wizard <command>` from anywhere in the repo.
+This installs the `dwiz` CLI so you can run `dwiz <command>` from anywhere in the repo.
 
 ## Bootstrap remote state
 
-The Terraform S3 backend and DynamoDB lock table are **automatically created** when you run `wizard up` or `make tf-init`. The backend configuration is read from `terraform/envs/{env}/backend.tf`.
+The Terraform S3 backend and DynamoDB lock table are **automatically created** when you run `dwiz up` or `make tf-init`. The backend configuration is read from `terraform/envs/{env}/backend.tf`.
 
 If you prefer to bootstrap manually (e.g., to use a custom bucket name), run:
 
 ```bash
-wizard bootstrap --bucket YOUR_ORG-wizard-tf-state --table YOUR_ORG-wizard-tf-lock
+dwiz bootstrap --bucket YOUR_ORG-dwiz-tf-state --table YOUR_ORG-dwiz-tf-lock
 ```
 
 Then update `terraform/envs/dev/backend.tf` and `terraform/envs/prod/backend.tf` with your custom values.
 
 ## GitHub Actions OIDC roles
 
-The `terraform/modules/iam` module creates two roles. The wizard automatically detects your AWS account ID from your credentials and creates/updates `terraform/envs/{env}/terraform.tfvars` with the required configuration.
+The `terraform/modules/iam` module creates two roles. The dwiz automatically detects your AWS account ID from your credentials and creates/updates `terraform/envs/{env}/terraform.tfvars` with the required configuration.
 
 - `github-deploy-dev` trusts `refs/heads/main`
 - `github-deploy-prod` trusts `refs/tags/v*`
 
 The trust policy is scoped to this repo and specific ref. Policies are scoped to environment resources via tags.
 
-**Note:** The wizard will automatically:
+**Note:** The dwiz will automatically:
 - Detect your AWS account ID from your credentials
 - Detect your GitHub repository from the git remote (e.g., `owner/repo`)
 - Generate the OIDC provider ARN using your account ID
-- Store the account ID for future use in `.wizard/account_id`
+- Store the account ID for future use in `.dwiz/account_id`
 - Create/update `terraform.tfvars` with all required variables
 
-No manual input is needed for OIDC provider ARN or account ID when running `wizard up`.
+No manual input is needed for OIDC provider ARN or account ID when running `dwiz up`.
 
 If you need to manually configure variables, edit `terraform/envs/{env}/terraform.tfvars`.
 
 ## Deploy dev
 
 ```bash
-wizard init
-wizard up dev
-wizard deploy dev
+dwiz init
+dwiz up dev
+dwiz deploy dev
 ```
 
 ## Promote to prod
 
 ```bash
-wizard up prod
-wizard deploy prod
+dwiz up prod
+dwiz deploy prod
 ```
 
 For GitHub Actions, push a tag `v*` to run the prod workflow.
@@ -70,7 +70,7 @@ For GitHub Actions, push a tag `v*` to run the prod workflow.
 
 - `dags/templates/stream_compaction.py` and `dags/templates/batch_api_ingest.py` show recommended structure.
 - Add sources in `pipelines/sources` and streams in `pipelines/streams`.
-- Use `wizard new-source <name>` and `wizard add-stream <name>` to scaffold files.
+- Use `dwiz new-source <name>` and `dwiz add-stream <name>` to scaffold files.
 
 All DAGs must set `owner`, `tags`, `schedule_interval`, `catchup`, and `max_active_runs`.
 
@@ -85,7 +85,7 @@ Secure storage of API keys, database credentials, and other secrets via AWS Secr
 ```python
 from libs.python_common.secrets import get_secret_value
 
-api_key = get_secret_value("wizard-dev/api-keys", "external_api")
+api_key = get_secret_value("dwiz-dev/api-keys", "external_api")
 ```
 
 ## Monitoring

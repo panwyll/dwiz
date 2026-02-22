@@ -18,8 +18,8 @@ def compact_stream() -> None:
     configure_logging()
     
     # Example: Retrieve streaming credentials from AWS Secrets Manager
-    # Replace 'wizard-dev' with your actual secret prefix
-    # stream_creds = get_secret_value("wizard-dev/streaming", "stream_api_key")
+    # Replace 'dwiz-dev' with your actual secret prefix
+    # stream_creds = get_secret_value("dwiz-dev/streaming", "stream_api_key")
     # Use credentials to access streaming service
     
     emit_metric("stream_compaction_runs", 1, stream="example")

@@ -5,7 +5,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from cli.aws_preflight import AWSPreflight, ProbeResult, run_preflight_check
-from cli.wizard import build_parser, cmd_deploy, cmd_init, cmd_up
+from cli.dwiz import build_parser, cmd_deploy, cmd_init, cmd_up
 
 
 def test_probe_result_creation() -> None:
@@ -472,8 +472,8 @@ def test_init_command_runs_preflight() -> None:
     parser = build_parser()
     args = parser.parse_args(["init"])
 
-    with patch("cli.wizard.require_tools"), patch(
-        "cli.wizard.run_preflight_check"
+    with patch("cli.dwiz.require_tools"), patch(
+        "cli.dwiz.run_preflight_check"
     ) as mock_preflight:
         cmd_init(args)
         mock_preflight.assert_called_once_with(verbose=False, write_probes=False)
@@ -484,8 +484,8 @@ def test_init_command_passes_verbose_flag() -> None:
     parser = build_parser()
     args = parser.parse_args(["init", "--verbose"])
 
-    with patch("cli.wizard.require_tools"), patch(
-        "cli.wizard.run_preflight_check"
+    with patch("cli.dwiz.require_tools"), patch(
+        "cli.dwiz.run_preflight_check"
     ) as mock_preflight:
         cmd_init(args)
         mock_preflight.assert_called_once_with(verbose=True, write_probes=False)
@@ -496,8 +496,8 @@ def test_init_command_passes_preflight_write_flag() -> None:
     parser = build_parser()
     args = parser.parse_args(["init", "--preflight-write"])
 
-    with patch("cli.wizard.require_tools"), patch(
-        "cli.wizard.run_preflight_check"
+    with patch("cli.dwiz.require_tools"), patch(
+        "cli.dwiz.run_preflight_check"
     ) as mock_preflight:
         cmd_init(args)
         mock_preflight.assert_called_once_with(verbose=False, write_probes=True)
@@ -509,10 +509,10 @@ def test_up_command_runs_preflight() -> None:
     args = parser.parse_args(["up", "dev"])
 
     with (
-        patch("cli.wizard.require_tools"),
-        patch("cli.wizard.run_make"),
-        patch("cli.wizard.run_preflight_check") as mock_preflight,
-        patch("cli.wizard.ensure_terraform_vars"),
+        patch("cli.dwiz.require_tools"),
+        patch("cli.dwiz.run_make"),
+        patch("cli.dwiz.run_preflight_check") as mock_preflight,
+        patch("cli.dwiz.ensure_terraform_vars"),
     ):
         cmd_up(args)
         mock_preflight.assert_called_once_with(verbose=False, write_probes=False)
@@ -523,8 +523,8 @@ def test_deploy_command_runs_preflight() -> None:
     parser = build_parser()
     args = parser.parse_args(["deploy", "dev"])
 
-    with patch("cli.wizard.require_tools"), patch("cli.wizard.run_make"), patch(
-        "cli.wizard.run_preflight_check"
+    with patch("cli.dwiz.require_tools"), patch("cli.dwiz.run_make"), patch(
+        "cli.dwiz.run_preflight_check"
     ) as mock_preflight:
         cmd_deploy(args)
         mock_preflight.assert_called_once_with(verbose=False, write_probes=False)

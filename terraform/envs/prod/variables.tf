@@ -5,7 +5,7 @@ variable "region" {
 
 variable "project" {
   type    = string
-  default = "wizard"
+  default = "dwiz"
 }
 
 variable "airflow_version" {
