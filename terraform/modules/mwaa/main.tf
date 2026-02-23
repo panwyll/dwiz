@@ -147,10 +147,11 @@ resource "aws_mwaa_environment" "this" {
   }
   
   lifecycle {
-    # Prevent replacement during updates - MWAA doesn't support many in-place changes
-    # Use explicit terraform taint if full recreation is needed
-    prevent_destroy = false
+    # Create new MWAA environment before destroying the old one: disabled
+    # This forces sequential destroy-then-create which is safer for MWAA
+    # Allow destruction: enabled (prevent_destroy = false)
     create_before_destroy = false
+    prevent_destroy = false
   }
 }
 

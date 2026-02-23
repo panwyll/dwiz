@@ -101,8 +101,9 @@ while [ "${attempt}" -le "${MAX_RETRIES}" ] && [ "${TERRAFORM_EXIT_CODE}" -ne 0 
       
       # Try to extract resource information from error message
       if grep -q "Role with name.*already exists" "${TERRAFORM_OUTPUT_FILE}"; then
-        # Use sed for more portable extraction (works on BSD and GNU)
-        ROLE_NAME=$(grep "Role with name" "${TERRAFORM_OUTPUT_FILE}" | sed -n 's/.*Role with name \([^ ]*\) already exists.*/\1/p' | head -1)
+        # Use sed for portable extraction - IAM role names cannot contain spaces per AWS restrictions
+        # Pattern matches: "Role with name <role-name> already exists"
+        ROLE_NAME=$(grep "Role with name" "${TERRAFORM_OUTPUT_FILE}" | sed -n 's/.*Role with name \([^[:space:]]*\) already exists.*/\1/p' | head -1)
         if [[ -n "${ROLE_NAME}" ]]; then
           echo "📋 Detected IAM Role already exists: ${ROLE_NAME}"
           echo ""
