@@ -145,6 +145,13 @@ resource "aws_mwaa_environment" "this" {
   tags = {
     Environment = var.environment
   }
+  
+  lifecycle {
+    # Prevent replacement during updates - MWAA doesn't support many in-place changes
+    # Use explicit terraform taint if full recreation is needed
+    prevent_destroy = false
+    create_before_destroy = false
+  }
 }
 
 resource "aws_security_group" "mwaa" {

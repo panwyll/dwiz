@@ -29,16 +29,36 @@ fi
 # Check MWAA environment status to avoid operations during transitional states
 echo "Checking MWAA environment status..."
 MWAA_ENV_NAME="dwiz-mwaa-${ENVIRONMENT}"
-if ./scripts/check_mwaa_status.sh "${MWAA_ENV_NAME}" 2>/dev/null; then
-  echo ""
-else
-  MWAA_STATUS_EXIT_CODE=$?
-  if [ "${MWAA_STATUS_EXIT_CODE}" -eq 1 ]; then
-    echo "⚠️  MWAA environment is in transitional state - terraform operations may fail"
-    echo "    The script will retry with backoff if errors occur"
+MWAA_WAIT_ATTEMPTS=0
+MWAA_MAX_WAIT_ATTEMPTS=5
+MWAA_WAIT_DELAY=60
+
+while [ "${MWAA_WAIT_ATTEMPTS}" -lt "${MWAA_MAX_WAIT_ATTEMPTS}" ]; do
+  if ./scripts/check_mwaa_status.sh "${MWAA_ENV_NAME}" 2>/dev/null; then
     echo ""
+    break
+  else
+    MWAA_STATUS_EXIT_CODE=$?
+    if [ "${MWAA_STATUS_EXIT_CODE}" -eq 1 ]; then
+      # MWAA is in transitional state
+      MWAA_WAIT_ATTEMPTS=$((MWAA_WAIT_ATTEMPTS + 1))
+      if [ "${MWAA_WAIT_ATTEMPTS}" -lt "${MWAA_MAX_WAIT_ATTEMPTS}" ]; then
+        echo "⚠️  MWAA environment is in transitional state"
+        echo "    Waiting ${MWAA_WAIT_DELAY} seconds before checking again (attempt ${MWAA_WAIT_ATTEMPTS}/${MWAA_MAX_WAIT_ATTEMPTS})..."
+        sleep "${MWAA_WAIT_DELAY}"
+      else
+        echo "⚠️  MWAA environment is still in transitional state after ${MWAA_MAX_WAIT_ATTEMPTS} attempts"
+        echo "    Proceeding with terraform, but operations may fail if MWAA state hasn't stabilized"
+        echo ""
+        break
+      fi
+    else
+      # MWAA doesn't exist or is in a different state
+      echo ""
+      break
+    fi
   fi
-fi
+done
 
 # Run terraform apply with retry logic for state lock issues
 attempt=1
@@ -75,7 +95,29 @@ while [ "${attempt}" -le "${MAX_RETRIES}" ] && [ "${TERRAFORM_EXIT_CODE}" -ne 0 
 
     # Check for resource already exists errors (should not auto-retry these)
     if grep -q "EntityAlreadyExists" "${TERRAFORM_OUTPUT_FILE}"; then
-      echo "⚠️  Resource already exists - this may require manual intervention (import or removal)"
+      echo ""
+      echo "⚠️  Resource already exists - attempting to provide import guidance"
+      echo ""
+      
+      # Try to extract resource information from error message
+      if grep -q "Role with name.*already exists" "${TERRAFORM_OUTPUT_FILE}"; then
+        ROLE_NAME=$(grep -oP "Role with name \K[^ ]+" "${TERRAFORM_OUTPUT_FILE}" | head -1)
+        if [[ -n "${ROLE_NAME}" ]]; then
+          echo "📋 Detected IAM Role already exists: ${ROLE_NAME}"
+          echo ""
+          echo "To resolve this, import the existing role into Terraform state:"
+          echo ""
+          if [[ "${ROLE_NAME}" == "github-deploy-dev" ]]; then
+            echo "  terraform -chdir=terraform/envs/dev import module.iam_dev.aws_iam_role.github ${ROLE_NAME}"
+          elif [[ "${ROLE_NAME}" == "github-deploy-prod" ]]; then
+            echo "  terraform -chdir=terraform/envs/prod import module.iam_prod.aws_iam_role.github ${ROLE_NAME}"
+          else
+            echo "  terraform -chdir=terraform/envs/${ENVIRONMENT} import <resource_address> ${ROLE_NAME}"
+          fi
+          echo ""
+          echo "Then retry the apply operation."
+        fi
+      fi
       break
     fi
 
@@ -115,10 +157,11 @@ else
   echo "    → Force unlock (if safe): make tf-unlock ENV=${ENVIRONMENT} LOCK_ID=<id>"
   echo ""
   echo "  • MWAA Environment in transitional state (CREATING, UPDATING, DELETING)"
-  echo "    → The script automatically retries with exponential backoff"
+  echo "    → The script automatically waits and retries for MWAA state changes"
   echo "    → MWAA operations can take 20-45 minutes to complete"
   echo "    → Wait for the environment to reach AVAILABLE or failed state"
   echo "    → Check status: aws mwaa get-environment --name <env-name> --query 'Environment.Status'"
+  echo "    → NOTE: If destroying infrastructure, wait for MWAA deletion to complete before recreating"
   echo ""
   echo "  • Resources already exist (409 EntityAlreadyExists)"
   echo "    → This may be OK if infrastructure is already deployed"
