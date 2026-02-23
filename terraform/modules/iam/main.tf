@@ -28,14 +28,6 @@ resource "aws_iam_role" "github" {
   tags = {
     Environment = var.environment
   }
-  
-  lifecycle {
-    # Prevent recreation if role already exists - import instead
-    # This helps avoid EntityAlreadyExists errors
-    ignore_changes = [
-      name,
-    ]
-  }
 }
 
 resource "aws_iam_role_policy" "github" {

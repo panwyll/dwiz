@@ -101,19 +101,17 @@ while [ "${attempt}" -le "${MAX_RETRIES}" ] && [ "${TERRAFORM_EXIT_CODE}" -ne 0 
       
       # Try to extract resource information from error message
       if grep -q "Role with name.*already exists" "${TERRAFORM_OUTPUT_FILE}"; then
-        ROLE_NAME=$(grep -oP "Role with name \K[^ ]+" "${TERRAFORM_OUTPUT_FILE}" | head -1)
+        # Use sed for more portable extraction (works on BSD and GNU)
+        ROLE_NAME=$(grep "Role with name" "${TERRAFORM_OUTPUT_FILE}" | sed -n 's/.*Role with name \([^ ]*\) already exists.*/\1/p' | head -1)
         if [[ -n "${ROLE_NAME}" ]]; then
           echo "📋 Detected IAM Role already exists: ${ROLE_NAME}"
           echo ""
           echo "To resolve this, import the existing role into Terraform state:"
           echo ""
-          if [[ "${ROLE_NAME}" == "github-deploy-dev" ]]; then
-            echo "  terraform -chdir=terraform/envs/dev import module.iam_dev.aws_iam_role.github ${ROLE_NAME}"
-          elif [[ "${ROLE_NAME}" == "github-deploy-prod" ]]; then
-            echo "  terraform -chdir=terraform/envs/prod import module.iam_prod.aws_iam_role.github ${ROLE_NAME}"
-          else
-            echo "  terraform -chdir=terraform/envs/${ENVIRONMENT} import <resource_address> ${ROLE_NAME}"
-          fi
+          
+          # Derive module name from ENVIRONMENT variable
+          MODULE_NAME="iam_${ENVIRONMENT}"
+          echo "  terraform -chdir=terraform/envs/${ENVIRONMENT} import module.${MODULE_NAME}.aws_iam_role.github ${ROLE_NAME}"
           echo ""
           echo "Then retry the apply operation."
         fi
