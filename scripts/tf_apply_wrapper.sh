@@ -110,9 +110,9 @@ while [ "${attempt}" -le "${MAX_RETRIES}" ] && [ "${TERRAFORM_EXIT_CODE}" -ne 0 
           echo "To resolve this, import the existing role into Terraform state:"
           echo ""
           
-          # Derive module name from ENVIRONMENT variable
-          MODULE_NAME="iam_${ENVIRONMENT}"
-          echo "  terraform -chdir=terraform/envs/${ENVIRONMENT} import module.${MODULE_NAME}.aws_iam_role.github ${ROLE_NAME}"
+          # Derive IAM module name from ENVIRONMENT variable
+          IAM_MODULE_NAME="iam_${ENVIRONMENT}"
+          echo "  terraform -chdir=terraform/envs/${ENVIRONMENT} import module.${IAM_MODULE_NAME}.aws_iam_role.github ${ROLE_NAME}"
           echo ""
           echo "Then retry the apply operation."
         fi
