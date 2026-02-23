@@ -145,6 +145,14 @@ resource "aws_mwaa_environment" "this" {
   tags = {
     Environment = var.environment
   }
+  
+  lifecycle {
+    # Create new MWAA environment before destroying the old one: disabled
+    # This forces sequential destroy-then-create which is safer for MWAA
+    # Allow destruction: enabled (prevent_destroy = false)
+    create_before_destroy = false
+    prevent_destroy = false
+  }
 }
 
 resource "aws_security_group" "mwaa" {
